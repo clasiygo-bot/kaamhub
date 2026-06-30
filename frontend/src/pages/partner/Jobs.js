@@ -1,7 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Phone, MapPin } from "lucide-react";
+import { Phone, MapPin, Navigation } from "lucide-react";
 import api, { formatError } from "@/lib/api";
+
+function buildMapsUrl(b) {
+  // Prefer GPS lat/lng → Google Maps directions deeplink (works in app + web)
+  if (b.lat != null && b.lng != null) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}&travelmode=driving`;
+  }
+  if (b.address) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(b.address)}&travelmode=driving`;
+  }
+  return null;
+}
 
 const NEXT_BY_STATUS = {
   accepted: { next: "on_the_way", label: "On the way" },
@@ -68,9 +79,27 @@ export default function Jobs() {
               {b.customer && (
                 <div className="mt-2 text-sm text-slate-600 flex items-center gap-2"><Phone className="w-4 h-4 text-[#0F2D5C]"/>{b.customer.name} • {b.customer.phone || "—"}</div>
               )}
-              {NEXT_BY_STATUS[b.status] && (
-                <button onClick={()=>advance(b)} data-testid={`job-advance-${b.id}`} className="kh-cta px-4 py-2 mt-3 text-sm w-full sm:w-auto">{NEXT_BY_STATUS[b.status].label}</button>
-              )}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {!["completed","cancelled"].includes(b.status) && buildMapsUrl(b) && (
+                  <a
+                    href={buildMapsUrl(b)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid={`job-navigate-${b.id}`}
+                    className="px-4 py-2 rounded-full bg-[#0F2D5C] text-white text-sm font-semibold inline-flex items-center gap-1.5 hover:bg-[#0B244A] transition"
+                  >
+                    <Navigation className="w-4 h-4"/> Navigate (Google Maps)
+                  </a>
+                )}
+                {b.customer?.phone && !["completed","cancelled"].includes(b.status) && (
+                  <a href={`tel:${b.customer.phone}`} data-testid={`job-call-${b.id}`} className="kh-outline px-4 py-2 text-sm inline-flex items-center gap-1.5">
+                    <Phone className="w-4 h-4"/> Call customer
+                  </a>
+                )}
+                {NEXT_BY_STATUS[b.status] && (
+                  <button onClick={()=>advance(b)} data-testid={`job-advance-${b.id}`} className="kh-cta px-4 py-2 text-sm">{NEXT_BY_STATUS[b.status].label}</button>
+                )}
+              </div>
             </div>
           ))}
         </div>

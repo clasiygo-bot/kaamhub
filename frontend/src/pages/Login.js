@@ -86,9 +86,6 @@ export default function Login() {
           <p className="mt-6 text-sm text-slate-500 text-center">
             New to KaamHub? <Link data-testid="login-register-link" to="/register" className="text-[#0F2D5C] font-semibold hover:underline">Create an account</Link>
           </p>
-          <div className="mt-8 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
-            <strong>Demo admin:</strong> admin@kaamhub.in / Admin@12345
-          </div>
         </div>
       </div>
     </div>

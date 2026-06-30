@@ -32,7 +32,19 @@ export default function PartnerDashboard() {
   };
 
   const accept = async (id) => {
-    try { await api.post(`/bookings/${id}/accept`); toast.success("Booking accepted"); refresh(); }
+    try {
+      await api.post(`/bookings/${id}/accept`);
+      toast.success("Booking accepted — opening Google Maps…");
+      // Find the accepted booking from local 'available' list to build maps URL
+      const b = available.find((x) => x.id === id);
+      if (b) {
+        const dest = (b.lat != null && b.lng != null) ? `${b.lat},${b.lng}` : encodeURIComponent(b.address || "");
+        if (dest) {
+          window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`, "_blank", "noopener");
+        }
+      }
+      refresh();
+    }
     catch (e) { toast.error(formatError(e.response?.data?.detail)); }
   };
 

@@ -33,6 +33,7 @@ import AdminServices from "@/pages/admin/Services";
 import AdminUsers from "@/pages/admin/Users";
 import AdminOffers from "@/pages/admin/Offers";
 import AdminUserDetail from "@/pages/admin/UserDetail";
+import PaymentResult from "@/pages/PaymentResult";
 
 import "@/App.css";
 
@@ -50,6 +51,7 @@ function AppRoutes() {
       <Route path="/" element={<RoleHomeRedirect />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/payment/:result" element={<PaymentResult />} />
 
       {/* Customer */}
       <Route

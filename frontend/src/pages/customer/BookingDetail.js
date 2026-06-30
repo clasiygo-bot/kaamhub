@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, Phone, MessageCircle, Check, Star } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, MessageCircle, Check, Star, CreditCard } from "lucide-react";
 import api, { formatError } from "@/lib/api";
+import { openCashfreeCheckout } from "@/lib/cashfree";
 
 const FLOW = ["pending","accepted","on_the_way","started","completed"];
 
@@ -12,6 +13,7 @@ export default function BookingDetail() {
   const [b, setB] = useState(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+  const [paying, setPaying] = useState(false);
 
   const load = () => api.get(`/bookings/${id}`).then((r)=>setB(r.data));
   useEffect(() => {
@@ -25,6 +27,18 @@ export default function BookingDetail() {
       await api.post(`/bookings/${id}/status`, { status: "cancelled" });
       toast.success("Booking cancelled"); load();
     } catch (e) { toast.error(formatError(e.response?.data?.detail)); }
+  };
+
+  const payNow = async () => {
+    setPaying(true);
+    try {
+      const { data } = await api.post(`/payments/cashfree/init/${id}`);
+      await openCashfreeCheckout({ paymentSessionId: data.payment_session_id, mode: data.mode || "sandbox" });
+      // After checkout the user is redirected to /api/payments/cashfree/return → frontend /payment/success
+    } catch (e) {
+      toast.error(formatError(e.response?.data?.detail) || e.message);
+      setPaying(false);
+    }
   };
 
   const submitReview = async () => {
@@ -78,15 +92,22 @@ export default function BookingDetail() {
           </div>
 
           {/* Payment status */}
-          <div className={`mt-3 p-4 rounded-2xl flex items-center justify-between ${b.payment_status === "paid" ? "bg-emerald-50" : "bg-amber-50"}`}>
+          <div className={`mt-3 p-4 rounded-2xl flex items-center justify-between gap-3 ${b.payment_status === "paid" ? "bg-emerald-50" : "bg-amber-50"}`}>
             <div>
               <div className="text-xs text-slate-500">Payment</div>
               <div className={`font-semibold ${b.payment_status === "paid" ? "text-emerald-700" : "text-amber-700"}`}>
-                {b.payment_status === "paid" ? "✓ Payment received" : "Pending — pay after service"}
+                {b.payment_status === "paid" ? "✓ Payment received" : b.payment_status === "initiated" ? "Awaiting payment confirmation" : "Pending — pay anytime"}
               </div>
               {b.payment_ref && <div className="text-xs text-slate-500 mt-0.5">Ref: {b.payment_ref} • {b.payment_method}</div>}
             </div>
-            <div className="text-xl font-bold text-[#0F2D5C]">₹{b.amount}</div>
+            <div className="text-right">
+              <div className="text-xl font-bold text-[#0F2D5C]">₹{b.amount}</div>
+              {b.payment_status !== "paid" && b.status !== "cancelled" && (
+                <button onClick={payNow} disabled={paying} data-testid="pay-now-button" className="mt-2 kh-cta px-4 py-1.5 text-xs inline-flex items-center gap-1 disabled:opacity-60">
+                  <CreditCard className="w-3.5 h-3.5"/>{paying?"Opening…":"Pay Now"}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Partner card */}

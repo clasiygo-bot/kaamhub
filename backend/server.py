@@ -8,12 +8,18 @@ import os
 import uuid
 import logging
 import secrets
+import hmac
+import hashlib
+import base64
+import json
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 
 import bcrypt
 import jwt
+import httpx
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, status
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
@@ -881,6 +887,168 @@ async def admin_withdraw_action(wid: str, payload: WithdrawActionIn, _: Dict = D
     return {"ok": True}
 
 
+# ---------------------- Cashfree Payments ----------------------
+CASHFREE_API_VERSION = "2025-01-01"
+
+
+def cashfree_base_url() -> str:
+    mode = (os.environ.get("CASHFREE_MODE") or "sandbox").lower()
+    return "https://api.cashfree.com/pg" if mode == "production" else "https://sandbox.cashfree.com/pg"
+
+
+def cashfree_headers() -> Dict[str, str]:
+    return {
+        "x-client-id": os.environ.get("CASHFREE_APP_ID", ""),
+        "x-client-secret": os.environ.get("CASHFREE_SECRET_KEY", ""),
+        "x-api-version": CASHFREE_API_VERSION,
+        "Content-Type": "application/json",
+    }
+
+
+def cashfree_configured() -> bool:
+    return bool(os.environ.get("CASHFREE_APP_ID") and os.environ.get("CASHFREE_SECRET_KEY"))
+
+
+@api.post("/payments/cashfree/init/{bid}")
+async def cashfree_init(bid: str, user: Dict = Depends(require_role("customer"))):
+    """Create a Cashfree order for an unpaid booking and return payment_session_id."""
+    if not cashfree_configured():
+        raise HTTPException(503, "Payment gateway not configured. Please contact support.")
+    b = await db.bookings.find_one({"id": bid})
+    if not b:
+        raise HTTPException(404, "Booking not found")
+    if b["customer_id"] != user["id"]:
+        raise HTTPException(403, "Not your booking")
+    if b.get("payment_status") == "paid":
+        raise HTTPException(400, "Booking already paid")
+    if b.get("status") == "cancelled":
+        raise HTTPException(400, "Booking cancelled")
+
+    cf_order_id = f"KH-{bid[:8]}-{int(now_utc().timestamp())}"
+    frontend = os.environ.get("FRONTEND_URL", "")
+    backend_public = frontend  # in this env backend & frontend share host via ingress
+    payload = {
+        "order_id": cf_order_id,
+        "order_amount": float(b.get("amount", 0)),
+        "order_currency": "INR",
+        "customer_details": {
+            "customer_id": user["id"],
+            "customer_email": user["email"],
+            "customer_phone": (user.get("phone") or "9999999999")[:10],
+            "customer_name": user.get("name", "Customer"),
+        },
+        "order_meta": {
+            "return_url": f"{backend_public}/api/payments/cashfree/return?cf_order_id={cf_order_id}",
+            "notify_url": f"{backend_public}/api/payments/cashfree/webhook",
+        },
+        "order_note": f"KaamHub booking {bid[:8]}",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15) as client_h:
+            r = await client_h.post(f"{cashfree_base_url()}/orders", json=payload, headers=cashfree_headers())
+            data = r.json()
+            if r.status_code >= 400:
+                logger.error(f"Cashfree create-order failed: {data}")
+                raise HTTPException(502, data.get("message", "Payment gateway error"))
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"Payment gateway unreachable: {e}")
+
+    psid = data.get("payment_session_id")
+    if not psid:
+        raise HTTPException(502, "Payment session not created")
+
+    await db.bookings.update_one({"id": bid}, {"$set": {
+        "cf_order_id": cf_order_id,
+        "payment_status": "initiated",
+    }})
+    return {"payment_session_id": psid, "cf_order_id": cf_order_id, "mode": (os.environ.get("CASHFREE_MODE") or "sandbox").lower()}
+
+
+async def _verify_and_mark_paid_by_cf_order(cf_order_id: str) -> Optional[Dict[str, Any]]:
+    """Hit Cashfree get-order and atomically mark booking paid if order_status=PAID."""
+    if not cashfree_configured():
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=15) as client_h:
+            r = await client_h.get(f"{cashfree_base_url()}/orders/{cf_order_id}", headers=cashfree_headers())
+            cf = r.json()
+    except httpx.HTTPError:
+        return None
+    if cf.get("order_status") != "PAID":
+        return cf
+    b = await db.bookings.find_one({"cf_order_id": cf_order_id})
+    if not b:
+        return cf
+    if b.get("payment_status") == "paid":
+        return cf
+    cf_payment_id = ""
+    # get payments for this order
+    try:
+        async with httpx.AsyncClient(timeout=10) as client_h:
+            pr = await client_h.get(f"{cashfree_base_url()}/orders/{cf_order_id}/payments", headers=cashfree_headers())
+            plist = pr.json() if pr.status_code < 400 else []
+            if isinstance(plist, list) and plist:
+                cf_payment_id = str(plist[0].get("cf_payment_id", ""))
+    except httpx.HTTPError:
+        pass
+
+    await db.bookings.update_one({"id": b["id"]}, {"$set": {
+        "payment_status": "paid",
+        "payment_method": "cashfree",
+        "payment_ref": cf_payment_id or cf_order_id,
+        "paid_at": iso(now_utc()),
+    }})
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()), "user_id": b["customer_id"],
+        "title": "Payment received",
+        "body": f"₹{b.get('amount', 0)} payment confirmed via Cashfree.",
+        "booking_id": b["id"], "read": False, "created_at": iso(now_utc()),
+    })
+    return cf
+
+
+@api.get("/payments/cashfree/return")
+async def cashfree_return(cf_order_id: str = "", order_id: str = ""):
+    """Cashfree redirects user here after checkout. We verify status then redirect to frontend."""
+    oid = cf_order_id or order_id
+    front = os.environ.get("FRONTEND_URL", "")
+    if not oid:
+        return RedirectResponse(f"{front}/customer/bookings")
+    cf = await _verify_and_mark_paid_by_cf_order(oid)
+    success = bool(cf and cf.get("order_status") == "PAID")
+    # find the booking to redirect to its detail page
+    b = await db.bookings.find_one({"cf_order_id": oid})
+    booking_id = b["id"] if b else ""
+    target = f"{front}/payment/{'success' if success else 'failed'}?booking={booking_id}"
+    return RedirectResponse(target)
+
+
+@api.post("/payments/cashfree/webhook")
+async def cashfree_webhook(request: Request):
+    """Receive Cashfree webhook + verify signature + mark booking paid (idempotent)."""
+    secret = os.environ.get("CASHFREE_SECRET_KEY", "")
+    timestamp = request.headers.get("x-webhook-timestamp", "")
+    signature = request.headers.get("x-webhook-signature", "")
+    raw = await request.body()
+    if not secret or not timestamp or not signature:
+        raise HTTPException(400, "Missing signature headers")
+    msg = (timestamp + raw.decode("utf-8")).encode("utf-8")
+    digest = hmac.new(secret.encode("utf-8"), msg, hashlib.sha256).digest()
+    expected = base64.b64encode(digest).decode()
+    if not hmac.compare_digest(expected, signature):
+        raise HTTPException(400, "Invalid signature")
+    try:
+        payload = json.loads(raw.decode("utf-8") or "{}")
+    except Exception:
+        raise HTTPException(400, "Invalid JSON")
+    data = payload.get("data", {}) or {}
+    order = data.get("order", {}) or {}
+    cf_order_id = order.get("order_id") or payload.get("order_id")
+    if cf_order_id:
+        await _verify_and_mark_paid_by_cf_order(cf_order_id)
+    return {"ok": True}
+
+
 # ---------------------- Health ----------------------
 @api.get("/")
 async def root():
@@ -966,6 +1134,8 @@ async def startup():
     # seed admin
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@kaamhub.in").lower()
     admin_pw = os.environ.get("ADMIN_PASSWORD", "Admin@12345")
+    # Drop any other admin accounts so only the configured one exists
+    await db.users.delete_many({"role": "admin", "email": {"$ne": admin_email}})
     existing = await db.users.find_one({"email": admin_email})
     if not existing:
         await db.users.insert_one({
