@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, MapPin, Calendar, Clock, NotebookPen, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, MapPin, Calendar, Clock, NotebookPen, Check, LocateFixed } from "lucide-react";
 import api, { formatError } from "@/lib/api";
+import { detectLocation, getCachedLocation } from "@/lib/location";
 
 const steps = ["Address", "Date & Time", "Notes", "Review"];
 
@@ -13,20 +14,26 @@ export default function Booking() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({ address: "", date: "", time: "10:00", notes: "" });
   const [busy, setBusy] = useState(false);
+  const [locBusy, setLocBusy] = useState(false);
 
   useEffect(() => { api.get(`/services/${id}`).then(r=>setService(r.data)); }, [id]);
 
-  // try detect location
+  const fillMyLocation = async (force) => {
+    setLocBusy(true);
+    try {
+      const loc = await detectLocation({ useCache: !force });
+      setForm((f) => ({ ...f, address: loc.display_name || loc.short_name, lat: loc.lat, lng: loc.lng }));
+      toast.success("Location filled");
+    } catch (e) {
+      toast.error("Couldn't get location — please type your address");
+    } finally { setLocBusy(false); }
+  };
+
+  // Pre-fill from cached location
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        try {
-          const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-          const d = await resp.json();
-          if (d && d.display_name) setForm((f)=>({ ...f, address: f.address || d.display_name, lat: latitude, lng: longitude }));
-        } catch { /* noop */ }
-      }, () => {}, { timeout: 5000 });
+    const cached = getCachedLocation();
+    if (cached && !form.address) {
+      setForm((f)=>({ ...f, address: cached.display_name || cached.short_name, lat: cached.lat, lng: cached.lng }));
     }
   }, []);
 
@@ -81,7 +88,12 @@ export default function Booking() {
       <div className="rounded-3xl bg-white kh-shadow-card p-6 sm:p-8">
         {step === 0 && (
           <div>
-            <h2 className="text-xl font-bold mb-1" style={{fontFamily:"Outfit"}}>Service address</h2>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-xl font-bold" style={{fontFamily:"Outfit"}}>Service address</h2>
+              <button type="button" data-testid="booking-detect-location" onClick={()=>fillMyLocation(true)} disabled={locBusy} className="kh-outline px-3 py-1.5 text-xs inline-flex items-center gap-1 disabled:opacity-50">
+                <LocateFixed className="w-3.5 h-3.5"/>{locBusy?"Detecting…":"Use my location"}
+              </button>
+            </div>
             <p className="text-sm text-slate-500 mb-4">Where should our partner come?</p>
             <div className="relative">
               <MapPin className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
@@ -93,6 +105,9 @@ export default function Booking() {
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-[#FF8A00] focus:ring-2 focus:ring-[#FF8A00]/20 outline-none resize-none"
               />
             </div>
+            {form.lat && form.lng && (
+              <div className="mt-2 text-xs text-emerald-600 inline-flex items-center gap-1"><LocateFixed className="w-3 h-3"/> GPS captured ({form.lat.toFixed(4)}, {form.lng.toFixed(4)})</div>
+            )}
           </div>
         )}
         {step === 1 && (

@@ -98,7 +98,7 @@ export default function PartnerDashboard() {
 
       {/* Today's jobs */}
       <section>
-        <h2 className="text-xl font-bold mb-3" style={{fontFamily:"Outfit"}}>Today's jobs</h2>
+        <h2 className="text-xl font-bold mb-3" style={{fontFamily:"Outfit"}}>Today&apos;s jobs</h2>
         {todayJobs.length === 0 ? (
           <div className="text-center py-12 bg-slate-50 rounded-2xl text-slate-500">No jobs today.</div>
         ) : (

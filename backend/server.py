@@ -374,6 +374,10 @@ async def create_booking(payload: BookingIn, user: Dict = Depends(require_role("
         "time": payload.time,
         "notes": payload.notes or "",
         "status": "pending",
+        "payment_status": "unpaid",  # unpaid | paid
+        "payment_method": "",
+        "payment_ref": "",
+        "paid_at": None,
         "status_history": [{"status": "pending", "at": iso(now_utc())}],
         "created_at": iso(now_utc()),
     }
@@ -694,6 +698,51 @@ async def admin_toggle_user(uid: str, _: Dict = Depends(require_role("admin"))):
     return {"ok": True, "active": not u.get("active", True)}
 
 
+@api.get("/admin/users/{uid}")
+async def admin_user_detail(uid: str, _: Dict = Depends(require_role("admin"))):
+    u = await db.users.find_one({"id": uid}, {"_id": 0, "password_hash": 0})
+    if not u:
+        raise HTTPException(404, "User not found")
+    bookings = []
+    if u["role"] == "customer":
+        items = await db.bookings.find({"customer_id": uid}).sort("created_at", -1).to_list(500)
+        bookings = [await _booking_to_view(b) for b in items]
+        spent = sum(float(b.get("amount", 0)) for b in bookings if b.get("status") == "completed")
+        return {"user": u, "bookings": bookings, "stats": {"total_bookings": len(bookings), "completed": sum(1 for b in bookings if b.get("status") == "completed"), "total_spent": spent}}
+    elif u["role"] == "partner":
+        partner = await db.partners.find_one({"user_id": uid}, {"_id": 0}) or {}
+        items = await db.bookings.find({"partner_id": uid}).sort("created_at", -1).to_list(500)
+        bookings = [await _booking_to_view(b) for b in items]
+        wallet = await db.wallets.find_one({"user_id": uid}, {"_id": 0}) or {"balance": 0, "total_earned": 0}
+        withdrawals = await db.withdrawals.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).to_list(200)
+        reviews = await db.reviews.find({"partner_id": uid}, {"_id": 0}).sort("created_at", -1).to_list(200)
+        return {"user": u, "partner": partner, "wallet": wallet, "withdrawals": withdrawals, "bookings": bookings, "reviews": reviews, "stats": {"completed": sum(1 for b in bookings if b.get("status") == "completed")}}
+    return {"user": u, "bookings": []}
+
+
+@api.put("/admin/users/{uid}")
+async def admin_update_user(uid: str, body: Dict[str, Any], _: Dict = Depends(require_role("admin"))):
+    allowed = {k: v for k, v in body.items() if k in {"name", "phone", "active"}}
+    if not allowed:
+        raise HTTPException(400, "Nothing to update")
+    res = await db.users.update_one({"id": uid}, {"$set": allowed})
+    if res.matched_count == 0:
+        raise HTTPException(404, "User not found")
+    return {"ok": True}
+
+
+@api.put("/admin/partners/{user_id}")
+async def admin_update_partner(user_id: str, body: Dict[str, Any], _: Dict = Depends(require_role("admin"))):
+    allowed_keys = {"full_name", "phone", "city", "area", "experience_years", "service_category", "profile_photo", "aadhaar_url", "pan_url", "selfie_url", "bank_account", "ifsc", "upi_id", "online"}
+    allowed = {k: v for k, v in body.items() if k in allowed_keys}
+    if not allowed:
+        raise HTTPException(400, "Nothing to update")
+    res = await db.partners.update_one({"user_id": user_id}, {"$set": allowed})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Partner not found")
+    return {"ok": True}
+
+
 @api.delete("/admin/users/{uid}")
 async def admin_delete_user(uid: str, _: Dict = Depends(require_role("admin"))):
     await db.users.delete_one({"id": uid})
@@ -751,6 +800,52 @@ async def admin_assign(bid: str, body: Dict[str, str], _: Dict = Depends(require
         "$set": {"partner_id": partner_user_id, "status": "accepted"},
         "$push": {"status_history": {"status": "accepted", "at": now}},
     })
+    return {"ok": True}
+
+
+@api.post("/admin/bookings/{bid}/payment")
+async def admin_mark_payment(bid: str, body: Dict[str, Any], _: Dict = Depends(require_role("admin"))):
+    """Admin manually marks a booking payment as received."""
+    b = await db.bookings.find_one({"id": bid})
+    if not b:
+        raise HTTPException(404, "Booking not found")
+    action = body.get("action", "mark_paid")  # mark_paid | mark_unpaid
+    if action == "mark_paid":
+        update = {
+            "payment_status": "paid",
+            "payment_method": body.get("payment_method", "cash"),
+            "payment_ref": body.get("payment_ref", ""),
+            "paid_at": iso(now_utc()),
+        }
+        await db.bookings.update_one({"id": bid}, {"$set": update})
+        await db.notifications.insert_one({
+            "id": str(uuid.uuid4()), "user_id": b["customer_id"],
+            "title": "Payment received",
+            "body": f"₹{b.get('amount', 0)} payment confirmed for your booking.",
+            "booking_id": bid, "read": False, "created_at": iso(now_utc()),
+        })
+    elif action == "mark_unpaid":
+        await db.bookings.update_one({"id": bid}, {"$set": {"payment_status": "unpaid", "payment_ref": "", "paid_at": None}})
+    else:
+        raise HTTPException(400, "Invalid action")
+    nb = await db.bookings.find_one({"id": bid})
+    return await _booking_to_view(nb)
+
+
+@api.put("/admin/bookings/{bid}")
+async def admin_edit_booking(bid: str, body: Dict[str, Any], _: Dict = Depends(require_role("admin"))):
+    """Admin can edit booking address/date/time/notes/amount."""
+    allowed = {k: v for k, v in body.items() if k in {"address", "date", "time", "notes", "amount", "status"}}
+    if not allowed:
+        raise HTTPException(400, "Nothing to update")
+    if "status" in allowed:
+        allowed["status_history"] = None  # placeholder
+        # push history entry
+        await db.bookings.update_one({"id": bid}, {"$push": {"status_history": {"status": allowed["status"], "at": iso(now_utc()), "by": "admin"}}})
+        del allowed["status_history"]
+    res = await db.bookings.update_one({"id": bid}, {"$set": allowed})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Booking not found")
     return {"ok": True}
 
 

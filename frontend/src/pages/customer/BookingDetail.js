@@ -77,6 +77,18 @@ export default function BookingDetail() {
             <div className="text-sm text-slate-700">{b.address}</div>
           </div>
 
+          {/* Payment status */}
+          <div className={`mt-3 p-4 rounded-2xl flex items-center justify-between ${b.payment_status === "paid" ? "bg-emerald-50" : "bg-amber-50"}`}>
+            <div>
+              <div className="text-xs text-slate-500">Payment</div>
+              <div className={`font-semibold ${b.payment_status === "paid" ? "text-emerald-700" : "text-amber-700"}`}>
+                {b.payment_status === "paid" ? "✓ Payment received" : "Pending — pay after service"}
+              </div>
+              {b.payment_ref && <div className="text-xs text-slate-500 mt-0.5">Ref: {b.payment_ref} • {b.payment_method}</div>}
+            </div>
+            <div className="text-xl font-bold text-[#0F2D5C]">₹{b.amount}</div>
+          </div>
+
           {/* Partner card */}
           {b.partner && (
             <div className="mt-4 p-4 rounded-2xl border border-slate-200 flex items-center justify-between">

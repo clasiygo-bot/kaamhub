@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Search, MapPin, Wrench, Zap, Sparkles, Wind, Hammer, Star, ArrowRight, Tag } from "lucide-react";
 import api from "@/lib/api";
+import { detectLocation, getCachedLocation, clearLocationCache } from "@/lib/location";
+import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 
 const iconMap = { wrench: Wrench, zap: Zap, sparkles: Sparkles, wind: Wind, hammer: Hammer };
@@ -14,20 +16,28 @@ export default function CustomerHome() {
   const [recentBookings, setRecentBookings] = useState([]);
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState("All");
-  const [location, setLocation] = useState("Detecting…");
+  const [location, setLocation] = useState(getCachedLocation()?.short_name || "Detecting…");
+  const [locating, setLocating] = useState(false);
+
+  const detect = async (force = false) => {
+    setLocating(true);
+    try {
+      if (force) clearLocationCache();
+      const loc = await detectLocation({ useCache: !force });
+      setLocation(loc.short_name);
+      if (force) toast.success("Location refreshed");
+    } catch (e) {
+      setLocation("Set Location");
+      if (force) toast.error("Location permission denied");
+    } finally { setLocating(false); }
+  };
 
   useEffect(() => {
     api.get("/services").then((r) => setServices(r.data));
     api.get("/categories").then((r) => setCategories(r.data));
     api.get("/offers").then((r) => setOffers(r.data));
     api.get("/bookings/mine").then((r) => setRecentBookings(r.data.slice(0, 3)));
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        () => setLocation("Current Location"),
-        () => setLocation("Set Location"),
-        { timeout: 4000 }
-      );
-    } else setLocation("Set Location");
+    if (!getCachedLocation()) detect(false); else setLocation(getCachedLocation().short_name);
   }, []);
 
   const filtered = useMemo(() => {
@@ -43,7 +53,10 @@ export default function CustomerHome() {
       <section className="rounded-3xl bg-gradient-to-br from-[#0F2D5C] to-[#1a3a73] text-white p-6 sm:p-10 kh-shadow-card">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-xs text-white/60 flex items-center gap-1.5"><MapPin className="w-3 h-3"/> {location}</div>
+            <button onClick={() => detect(true)} data-testid="home-refresh-location" className="text-xs text-white/60 hover:text-white inline-flex items-center gap-1.5 group">
+              <MapPin className="w-3 h-3"/> <span className="truncate max-w-[200px] sm:max-w-md">{locating ? "Detecting…" : location}</span>
+              <span className="text-[10px] text-white/40 group-hover:text-white/80 ml-1">tap to refresh</span>
+            </button>
             <h1 className="mt-2 text-2xl sm:text-3xl font-bold" style={{fontFamily:"Outfit"}}>
               Hi {user?.name?.split(" ")[0] || "there"} 👋
             </h1>

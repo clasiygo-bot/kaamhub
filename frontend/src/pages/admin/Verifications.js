@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Eye } from "lucide-react";
 import api, { formatError } from "@/lib/api";
 
 export default function Verifications() {
@@ -55,6 +56,7 @@ export default function Verifications() {
               ))}
             </div>
             <span className={`mt-3 inline-block kh-chip ${p.status==="approved"?"bg-emerald-100 text-emerald-700":p.status==="rejected"?"bg-red-100 text-red-700":"bg-amber-100 text-amber-700"}`}>{p.status}</span>
+            <Link to={`/admin/users/${p.user_id}`} data-testid={`ver-view-${p.user_id}`} className="ml-2 text-xs px-3 py-1 rounded-full bg-[#0F2D5C] text-white inline-flex items-center gap-1"><Eye className="w-3 h-3"/>Full details</Link>
             {p.status === "pending" && (
               <div className="mt-3 flex gap-2">
                 <button onClick={()=>verify(p.user_id, "approve")} data-testid={`ver-approve-${p.user_id}`} className="flex-1 kh-cta py-2 text-sm inline-flex items-center justify-center gap-1"><CheckCircle2 className="w-4 h-4"/>Approve</button>
