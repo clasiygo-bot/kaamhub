@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, Phone, MessageCircle, Check, Star, CreditCard } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, MessageCircle, Check, Star, CreditCard, QrCode, Smartphone } from "lucide-react";
 import api, { formatError } from "@/lib/api";
 import { openCashfreeCheckout } from "@/lib/cashfree";
+import LiveTrackingMap from "@/components/LiveTrackingMap";
 
 const FLOW = ["pending","accepted","on_the_way","started","completed"];
+const SHOW_MAP_STATUSES = new Set(["accepted","on_the_way","started"]);
 
 export default function BookingDetail() {
   const { id } = useParams();
@@ -14,10 +16,13 @@ export default function BookingDetail() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [paying, setPaying] = useState(false);
+  const [payOpts, setPayOpts] = useState(null);
+  const [showQr, setShowQr] = useState(false);
 
   const load = () => api.get(`/bookings/${id}`).then((r)=>setB(r.data));
   useEffect(() => {
     load();
+    api.get("/payment-settings").then((r)=>setPayOpts(r.data)).catch(()=>{});
     const t = setInterval(load, 6000);
     return () => clearInterval(t);
   }, [id]);
@@ -29,16 +34,23 @@ export default function BookingDetail() {
     } catch (e) { toast.error(formatError(e.response?.data?.detail)); }
   };
 
-  const payNow = async () => {
+  const payCashfree = async () => {
     setPaying(true);
     try {
       const { data } = await api.post(`/payments/cashfree/init/${id}`);
       await openCashfreeCheckout({ paymentSessionId: data.payment_session_id, mode: data.mode || "sandbox" });
-      // After checkout the user is redirected to /api/payments/cashfree/return → frontend /payment/success
     } catch (e) {
       toast.error(formatError(e.response?.data?.detail) || e.message);
       setPaying(false);
     }
+  };
+
+  const upiIntentUrl = () => {
+    if (!payOpts || !b) return "";
+    const pa = encodeURIComponent(payOpts.upi_id);
+    const pn = encodeURIComponent(payOpts.upi_payee_name || "KaamHub");
+    const tn = encodeURIComponent(`KaamHub ${b.service?.name || "booking"} ${id.slice(0,8)}`);
+    return `upi://pay?pa=${pa}&pn=${pn}&am=${b.amount}&cu=INR&tn=${tn}`;
   };
 
   const submitReview = async () => {
@@ -91,24 +103,89 @@ export default function BookingDetail() {
             <div className="text-sm text-slate-700">{b.address}</div>
           </div>
 
+          {/* Live tracking map */}
+          {SHOW_MAP_STATUSES.has(b.status) && (
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-semibold text-[#0F2D5C]">Partner live location</div>
+                {b.partner_location?.at && <div className="text-xs text-slate-400">Updated {new Date(b.partner_location.at).toLocaleTimeString()}</div>}
+              </div>
+              <LiveTrackingMap
+                customer={(b.lat != null && b.lng != null) ? { lat: b.lat, lng: b.lng } : null}
+                partner={b.partner_location?.lat != null ? { lat: b.partner_location.lat, lng: b.partner_location.lng } : null}
+              />
+            </div>
+          )}
+
           {/* Payment status */}
           <div className={`mt-3 p-4 rounded-2xl flex items-center justify-between gap-3 ${b.payment_status === "paid" ? "bg-emerald-50" : "bg-amber-50"}`}>
             <div>
               <div className="text-xs text-slate-500">Payment</div>
               <div className={`font-semibold ${b.payment_status === "paid" ? "text-emerald-700" : "text-amber-700"}`}>
-                {b.payment_status === "paid" ? "✓ Payment received" : b.payment_status === "initiated" ? "Awaiting payment confirmation" : "Pending — pay anytime"}
+                {b.payment_status === "paid" ? "✓ Payment received" : b.payment_status === "initiated" ? "Awaiting payment confirmation" : "Pending"}
               </div>
               {b.payment_ref && <div className="text-xs text-slate-500 mt-0.5">Ref: {b.payment_ref} • {b.payment_method}</div>}
             </div>
-            <div className="text-right">
-              <div className="text-xl font-bold text-[#0F2D5C]">₹{b.amount}</div>
-              {b.payment_status !== "paid" && b.status !== "cancelled" && (
-                <button onClick={payNow} disabled={paying} data-testid="pay-now-button" className="mt-2 kh-cta px-4 py-1.5 text-xs inline-flex items-center gap-1 disabled:opacity-60">
-                  <CreditCard className="w-3.5 h-3.5"/>{paying?"Opening…":"Pay Now"}
-                </button>
+            <div className="text-2xl font-bold text-[#0F2D5C]">₹{b.amount}</div>
+          </div>
+
+          {/* Payment options */}
+          {b.payment_status !== "paid" && b.status !== "cancelled" && payOpts && (
+            <div className="mt-3 p-5 rounded-2xl bg-slate-50">
+              <div className="text-sm font-semibold text-[#0F2D5C] mb-3">Choose how to pay</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {payOpts.enable_qr && (
+                  <button onClick={()=>setShowQr(!showQr)} data-testid="pay-option-qr" className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-200 hover:border-[#FF8A00] transition">
+                    <QrCode className="w-5 h-5 text-[#FF8A00]"/>
+                    <div className="text-left flex-1">
+                      <div className="text-sm font-semibold text-[#0F2D5C]">Scan QR Code</div>
+                      <div className="text-[11px] text-slate-500">Pay via any UPI app</div>
+                    </div>
+                  </button>
+                )}
+                {payOpts.enable_upi_intent && (
+                  <a href={upiIntentUrl()} data-testid="pay-option-upi-intent" className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-200 hover:border-[#FF8A00] transition">
+                    <Smartphone className="w-5 h-5 text-[#FF8A00]"/>
+                    <div className="text-left flex-1">
+                      <div className="text-sm font-semibold text-[#0F2D5C]">UPI App</div>
+                      <div className="text-[11px] text-slate-500">Open GPay/PhonePe/Paytm</div>
+                    </div>
+                  </a>
+                )}
+                {payOpts.enable_cashfree && (
+                  <button onClick={payCashfree} disabled={paying} data-testid="pay-option-cashfree" className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-200 hover:border-[#FF8A00] transition disabled:opacity-60">
+                    <CreditCard className="w-5 h-5 text-[#FF8A00]"/>
+                    <div className="text-left flex-1">
+                      <div className="text-sm font-semibold text-[#0F2D5C]">{paying?"Opening…":"Cards / Netbanking"}</div>
+                      <div className="text-[11px] text-slate-500">Cashfree secure checkout</div>
+                    </div>
+                  </button>
+                )}
+                {payOpts.enable_razorpay && (
+                  <div data-testid="pay-option-razorpay" className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-200 opacity-60">
+                    <CreditCard className="w-5 h-5 text-[#FF8A00]"/>
+                    <div className="text-left flex-1">
+                      <div className="text-sm font-semibold text-[#0F2D5C]">Razorpay</div>
+                      <div className="text-[11px] text-slate-500">Coming soon</div>
+                    </div>
+                  </div>
+                )}
+                {!payOpts.enable_qr && !payOpts.enable_upi_intent && !payOpts.enable_cashfree && !payOpts.enable_razorpay && (
+                  <div className="col-span-full text-sm text-slate-500 text-center py-4">No online payment methods enabled by admin. You can pay your partner directly (cash / UPI) — they will confirm receipt.</div>
+                )}
+              </div>
+              {showQr && payOpts.qr_image_url && (
+                <div className="mt-4 p-4 rounded-xl bg-white border border-slate-200 flex flex-col items-center">
+                  <img src={payOpts.qr_image_url} alt="UPI QR" className="w-56 h-56 object-contain"/>
+                  <div className="mt-3 text-center">
+                    <div className="text-sm font-semibold text-[#0F2D5C]">Pay ₹{b.amount}</div>
+                    {payOpts.upi_id && <div className="text-xs text-slate-500">UPI: {payOpts.upi_id}</div>}
+                    <div className="text-xs text-slate-500 mt-1">After paying, your partner will confirm and we&apos;ll mark this booking as paid.</div>
+                  </div>
+                </div>
               )}
             </div>
-          </div>
+          )}
 
           {/* Partner card */}
           {b.partner && (

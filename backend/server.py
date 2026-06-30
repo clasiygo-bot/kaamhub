@@ -358,6 +358,14 @@ async def _booking_to_view(b: Dict[str, Any]) -> Dict[str, Any]:
     if b.get("partner_id"):
         p = await db.users.find_one({"id": b["partner_id"]}, {"_id": 0, "password_hash": 0})
         b["partner"] = p
+        # attach partner's last known live location
+        pp = await db.partners.find_one({"user_id": b["partner_id"]}, {"_id": 0})
+        if pp:
+            b["partner_location"] = {
+                "lat": pp.get("last_lat"),
+                "lng": pp.get("last_lng"),
+                "at": pp.get("last_loc_at"),
+            }
     return b
 
 
@@ -588,6 +596,8 @@ async def list_notifications(user: Dict = Depends(get_current_user)):
         partner = await db.partners.find_one({"user_id": user["id"]})
         cat = partner.get("service_category", "") if partner else ""
         q = {"$or": [{"user_id": user["id"]}, {"scope": "category", "category": cat}]}
+    elif user["role"] == "admin":
+        q = {"$or": [{"user_id": user["id"]}, {"scope": "all"}, {"scope": "admin"}]}
     else:
         q = {"$or": [{"user_id": user["id"]}, {"scope": "all"}]}
     items = await db.notifications.find(q, {"_id": 0}).sort("created_at", -1).to_list(100)
@@ -1049,6 +1059,131 @@ async def cashfree_webhook(request: Request):
     return {"ok": True}
 
 
+# ---------------------- Payment Settings (admin-driven) ----------------------
+SETTINGS_ID = "payment_settings"
+
+DEFAULT_SETTINGS = {
+    "id": SETTINGS_ID,
+    "qr_image_url": "",
+    "upi_id": "",
+    "upi_payee_name": "KaamHub",
+    "enable_qr": False,
+    "enable_upi_intent": False,
+    "enable_cashfree": False,
+    "enable_razorpay": False,
+    "razorpay_key_id": "",
+    "razorpay_key_secret": "",
+    "cashfree_app_id": "",
+    "cashfree_secret_key": "",
+    "cashfree_mode": "sandbox",
+}
+
+
+async def _get_settings() -> Dict[str, Any]:
+    s = await db.settings.find_one({"id": SETTINGS_ID}, {"_id": 0})
+    if not s:
+        await db.settings.insert_one({**DEFAULT_SETTINGS, "created_at": iso(now_utc())})
+        return {**DEFAULT_SETTINGS}
+    # ensure all keys exist
+    return {**DEFAULT_SETTINGS, **s}
+
+
+@api.get("/payment-settings")
+async def get_payment_settings_public(_: Dict = Depends(get_current_user)):
+    """Public-ish: any authenticated user sees what payment options are enabled and the QR/UPI info."""
+    s = await _get_settings()
+    return {
+        "enable_qr": s["enable_qr"] and bool(s["qr_image_url"]),
+        "enable_upi_intent": s["enable_upi_intent"] and bool(s["upi_id"]),
+        "enable_cashfree": s["enable_cashfree"] and bool(s["cashfree_app_id"]) and bool(s["cashfree_secret_key"]),
+        "enable_razorpay": s["enable_razorpay"] and bool(s["razorpay_key_id"]) and bool(s["razorpay_key_secret"]),
+        "qr_image_url": s["qr_image_url"] if s["enable_qr"] else "",
+        "upi_id": s["upi_id"] if (s["enable_upi_intent"] or s["enable_qr"]) else "",
+        "upi_payee_name": s["upi_payee_name"] or "KaamHub",
+        "cashfree_mode": s["cashfree_mode"],
+        "razorpay_key_id": s["razorpay_key_id"] if s["enable_razorpay"] else "",  # public key only
+    }
+
+
+@api.get("/admin/payment-settings")
+async def get_payment_settings_admin(_: Dict = Depends(require_role("admin"))):
+    return await _get_settings()
+
+
+@api.put("/admin/payment-settings")
+async def update_payment_settings(body: Dict[str, Any], _: Dict = Depends(require_role("admin"))):
+    allowed_keys = set(DEFAULT_SETTINGS.keys()) - {"id"}
+    update = {k: v for k, v in body.items() if k in allowed_keys}
+    if not update:
+        raise HTTPException(400, "Nothing to update")
+    update["updated_at"] = iso(now_utc())
+    await db.settings.update_one({"id": SETTINGS_ID}, {"$set": update}, upsert=True)
+    # Also reflect cashfree creds into process env so live integration picks them without restart
+    if "cashfree_app_id" in update:
+        os.environ["CASHFREE_APP_ID"] = update["cashfree_app_id"] or ""
+    if "cashfree_secret_key" in update:
+        os.environ["CASHFREE_SECRET_KEY"] = update["cashfree_secret_key"] or ""
+    if "cashfree_mode" in update:
+        os.environ["CASHFREE_MODE"] = update["cashfree_mode"] or "sandbox"
+    return await _get_settings()
+
+
+# ---------------------- Partner live location ----------------------
+class PartnerLocationIn(BaseModel):
+    lat: float
+    lng: float
+
+
+@api.post("/partner/location")
+async def update_partner_location(payload: PartnerLocationIn, user: Dict = Depends(require_role("partner"))):
+    await db.partners.update_one(
+        {"user_id": user["id"]},
+        {"$set": {
+            "last_lat": payload.lat,
+            "last_lng": payload.lng,
+            "last_loc_at": iso(now_utc()),
+        }},
+        upsert=False,
+    )
+    return {"ok": True}
+
+
+# ---------------------- Partner marks payment received ----------------------
+class PartnerPaymentIn(BaseModel):
+    method: str = "cash"  # cash | upi | qr | other
+    ref: Optional[str] = ""
+
+
+@api.post("/partner/bookings/{bid}/mark-payment")
+async def partner_mark_payment(bid: str, payload: PartnerPaymentIn, user: Dict = Depends(require_role("partner"))):
+    b = await db.bookings.find_one({"id": bid})
+    if not b:
+        raise HTTPException(404, "Booking not found")
+    if b.get("partner_id") != user["id"]:
+        raise HTTPException(403, "Not your booking")
+    if b.get("payment_status") == "paid":
+        raise HTTPException(400, "Already paid")
+    await db.bookings.update_one({"id": bid}, {"$set": {
+        "payment_status": "paid",
+        "payment_method": payload.method,
+        "payment_ref": payload.ref or "",
+        "paid_at": iso(now_utc()),
+        "payment_marked_by": "partner",
+    }})
+    # notify customer + admin (broadcast to all admins via scope)
+    now = iso(now_utc())
+    await db.notifications.insert_many([
+        {"id": str(uuid.uuid4()), "user_id": b["customer_id"], "title": "Payment confirmed",
+         "body": f"Partner confirmed ₹{b.get('amount', 0)} ({payload.method}). Thank you!",
+         "booking_id": bid, "read": False, "created_at": now},
+        {"id": str(uuid.uuid4()), "scope": "admin", "title": "Partner marked payment received",
+         "body": f"Booking {bid[:8]} • ₹{b.get('amount', 0)} via {payload.method}{(' • Ref ' + payload.ref) if payload.ref else ''}",
+         "booking_id": bid, "read": False, "created_at": now},
+    ])
+    nb = await db.bookings.find_one({"id": bid})
+    return await _booking_to_view(nb)
+
+
 # ---------------------- Health ----------------------
 @api.get("/")
 async def root():
@@ -1153,6 +1288,19 @@ async def startup():
         await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_pw)}})
 
     logger.info("KaamHub startup complete")
+
+    # Hydrate Cashfree creds from DB settings into env if env is empty
+    try:
+        s = await db.settings.find_one({"id": "payment_settings"}, {"_id": 0})
+        if s:
+            if s.get("cashfree_app_id") and not os.environ.get("CASHFREE_APP_ID"):
+                os.environ["CASHFREE_APP_ID"] = s["cashfree_app_id"]
+            if s.get("cashfree_secret_key") and not os.environ.get("CASHFREE_SECRET_KEY"):
+                os.environ["CASHFREE_SECRET_KEY"] = s["cashfree_secret_key"]
+            if s.get("cashfree_mode") and not os.environ.get("CASHFREE_MODE"):
+                os.environ["CASHFREE_MODE"] = s["cashfree_mode"]
+    except Exception as e:
+        logger.warning(f"Settings hydrate failed: {e}")
 
 
 @app.on_event("shutdown")

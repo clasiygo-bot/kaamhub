@@ -33,6 +33,7 @@ import AdminServices from "@/pages/admin/Services";
 import AdminUsers from "@/pages/admin/Users";
 import AdminOffers from "@/pages/admin/Offers";
 import AdminUserDetail from "@/pages/admin/UserDetail";
+import AdminPaymentSettings from "@/pages/admin/PaymentSettings";
 import PaymentResult from "@/pages/PaymentResult";
 
 import "@/App.css";
@@ -83,6 +84,7 @@ function AppRoutes() {
       <Route path="/admin/services" element={<ProtectedRoute roles={["admin"]}><AdminLayout><AdminServices/></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute roles={["admin"]}><AdminLayout><AdminUsers/></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/users/:id" element={<ProtectedRoute roles={["admin"]}><AdminLayout><AdminUserDetail/></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/payment-settings" element={<ProtectedRoute roles={["admin"]}><AdminLayout><AdminPaymentSettings/></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/offers" element={<ProtectedRoute roles={["admin"]}><AdminLayout><AdminOffers/></AdminLayout></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />

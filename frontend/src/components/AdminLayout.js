@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { BarChart3, ShieldCheck, ClipboardList, Banknote, Wrench, Users, Megaphone, LogOut } from "lucide-react";
+import { BarChart3, ShieldCheck, ClipboardList, Banknote, Wrench, Users, Megaphone, LogOut, CreditCard } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import Logo from "@/components/Logo";
 
@@ -9,6 +9,7 @@ const items = [
   { to: "/admin/verifications", icon: ShieldCheck, label: "Verifications", testid: "nav-admin-verifications" },
   { to: "/admin/bookings", icon: ClipboardList, label: "Bookings", testid: "nav-admin-bookings" },
   { to: "/admin/payouts", icon: Banknote, label: "Payouts", testid: "nav-admin-payouts" },
+  { to: "/admin/payment-settings", icon: CreditCard, label: "Payments", testid: "nav-admin-payments" },
   { to: "/admin/services", icon: Wrench, label: "Services", testid: "nav-admin-services" },
   { to: "/admin/offers", icon: Megaphone, label: "Offers", testid: "nav-admin-offers" },
   { to: "/admin/users", icon: Users, label: "Users", testid: "nav-admin-users" },
