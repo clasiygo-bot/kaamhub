@@ -1,0 +1,103 @@
+{
+  "theme": "Light",
+  "archetype": "Custom Marketplace (Trust + Action)",
+  "colors": {
+    "primary": "#0F2D5C",
+    "secondary": "#FF8A00",
+    "background": "#FFFFFF",
+    "surface": "#F8FAFC",
+    "surface_elevated": "#FFFFFF",
+    "border": "#E2E8F0",
+    "text_main": "#0F172A",
+    "text_muted": "#64748B",
+    "success": "#10B981",
+    "warning": "#F59E0B",
+    "error": "#EF4444"
+  },
+  "typography": {
+    "heading_font": "Outfit",
+    "body_font": "Manrope",
+    "base_size": "16px",
+    "heading_styles": {
+      "h1": "text-4xl sm:text-5xl font-bold tracking-tight text-[#0F2D5C]",
+      "h2": "text-2xl sm:text-3xl font-semibold tracking-tight text-[#0F2D5C]",
+      "h3": "text-xl sm:text-2xl font-semibold text-[#0F2D5C]"
+    },
+    "body_styles": {
+      "large": "text-lg font-medium text-[#0F172A]",
+      "base": "text-base text-[#64748B]",
+      "small": "text-sm text-[#64748B]",
+      "overline": "text-xs font-bold uppercase tracking-[0.2em] text-[#FF8A00]"
+    }
+  },
+  "spacing_and_layout": {
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "section_padding": "py-12 sm:py-16 lg:py-24",
+    "gap_standard": "gap-6",
+    "radius": {
+      "card": "rounded-2xl",
+      "button": "rounded-full",
+      "badge": "rounded-full",
+      "input": "rounded-xl"
+    },
+    "shadows": {
+      "card": "shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)]",
+      "card_hover": "shadow-[0_8px_30px_rgb(0,0,0,0.08)]",
+      "nav": "shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]"
+    }
+  },
+  "component_instructions": {
+    "buttons": "Primary CTA must use #FF8A00 text-white. Secondary/Outline uses #0F2D5C. Always rounded-full for modern app feel. Include hover:scale-[1.02] active:scale-[0.98] transition-transform.",
+    "cards": "Service cards must have white bg, rounded-2xl, subtle shadow. Image on top, info below. Partner dashboard uses BENTO grid. Do not overuse standard borders.",
+    "inputs": "Shadcn UI base. rounded-xl, focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00].",
+    "navigation": "Customer/Partner on mobile: Fixed Bottom Tab Nav (bg-white/80 backdrop-blur-xl border-t border-slate-200). Desktop: Sticky Top Nav.",
+    "status_badges": "Use soft colored backgrounds with bold text (e.g. bg-orange-100 text-orange-700). rounded-full px-3 py-1 text-xs font-semibold.",
+    "map": "Leaflet/OSM implementation. Use custom SVG marker in #FF8A00 for partner location."
+  },
+  "media": {
+    "images": {
+      "ac_repair": [
+        "https://images.pexels.com/photos/33958627/pexels-photo-33958627.jpeg",
+        "https://images.pexels.com/photos/33671149/pexels-photo-33671149.jpeg"
+      ],
+      "cleaning": [
+        "https://images.pexels.com/photos/6195118/pexels-photo-6195118.jpeg",
+        "https://images.pexels.com/photos/6195129/pexels-photo-6195129.jpeg"
+      ],
+      "plumbing": [
+        "https://images.pexels.com/photos/29226620/pexels-photo-29226620.jpeg",
+        "https://images.pexels.com/photos/33388390/pexels-photo-33388390.jpeg"
+      ],
+      "electrician": [
+        "https://images.pexels.com/photos/5691588/pexels-photo-5691588.jpeg",
+        "https://images.pexels.com/photos/5691589/pexels-photo-5691589.jpeg"
+      ],
+      "carpenter": [
+        "https://images.unsplash.com/photo-1608613304810-2d4dd52511a2",
+        "https://images.unsplash.com/photo-1731168273756-e02cae42265b"
+      ],
+      "hero_banners": [
+        "https://images.unsplash.com/photo-1614850715649-1d0106293bd1",
+        "https://images.unsplash.com/photo-1689718107045-513b35f1a356"
+      ],
+      "happy_customer": [
+        "https://images.unsplash.com/photo-1758523671071-4e3c43d055e6"
+      ]
+    }
+  },
+  "testing": {
+    "data_testid_rule": "ALL interactive elements and key text MUST have a `data-testid` attribute using kebab-case role-based naming (e.g., `data-testid='book-service-button'`)."
+  },
+  "instructions_to_main_agent": [
+    "Build the application using React JS (.js files, NOT .tsx), Tailwind CSS, and Shadcn UI.",
+    "Implement lucide-react for all iconography.",
+    "Ensure 'Outfit' and 'Manrope' fonts are imported from Google Fonts in index.css.",
+    "Start with the Splash Screen showing the Logo (Navy Blue) and Tagline 'Har Kaam, Ab Hoga Aasaan!' fading in.",
+    "Implement routing for 3 distinct surfaces: /customer, /partner, /admin.",
+    "Customer flow must be highly polished: Mobile-first layout, carousel for banners, grid for categories, multi-step booking using framer-motion for smooth transitions.",
+    "Partner flow focuses on utility: bento grid dashboard, clear wallet balances, document upload forms for onboarding.",
+    "Admin flow focuses on density: data tables (Shadcn), stat cards, verification queues.",
+    "Use framer-motion for micro-interactions (hover, active states) and page transitions.",
+    "Apply `data-testid` universally across all interactive elements."
+  ]
+}
