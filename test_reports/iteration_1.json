@@ -1,0 +1,48 @@
+{
+  "summary": "First iteration end-to-end testing of KaamHub V1.0. Backend pytest suite (26 tests) covers auth, admin protection, seed data, full booking + partner verification + withdrawal flow, services CRUD — ALL 26 PASSED. Frontend Playwright covers splash/landing, customer register → 4-step booking → confirmation (booking persisted), admin login → dashboard KPIs, partner register → onboarding submission → status pending, admin verifications approve, admin payouts page, admin services page — ALL PASSED.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "auth", "issue": "Brute-force lockout after 5 failed logins (mentioned in playbook_testing_instructions) is NOT implemented in /api/auth/login. Currently unlimited login attempts allowed."},
+      {"endpoint": "/api/auth/me", "issue": "Unauthenticated calls correctly return 401, but the frontend AuthContext appears to call /api/auth/me on every page load even when no session — produces noisy 401 console errors. Cosmetic."},
+      {"endpoint": "CORS", "issue": "When CORS_ORIGINS=\"*\" is set in .env, code falls back to FRONTEND_URL only. allow_credentials=True + allow_origins=[\"*\"] would be invalid per CORS spec; current logic handles it, but the .env wildcard is misleading. Consider documenting that explicit origins must be set."},
+      {"endpoint": "/api/bookings/{id}/status", "issue": "No state-machine guard — partner can jump from accepted directly to completed (skip on_the_way/started). Wallet still credits. Consider enforcing ordered transitions."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing hero", "issues": ["Hero image is a flat orange/navy diagonal gradient placeholder, not a real home-services photo. Brand-consistent but feels stock."]},
+      {"screen": "Console", "issues": ["Two 401s logged in console on initial load (from /api/auth/me probe) for anonymous users. Consider suppressing logging or skipping the probe when no auth cookie is present."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_kaamhub_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: Implement brute-force account lockout after 5 failed login attempts (referenced in auth playbook).",
+    "OPTIONAL: Enforce booking status state-machine (pending → accepted → on_the_way → started → completed) on backend.",
+    "OPTIONAL: Suppress unauthenticated /api/auth/me 401 console errors on landing page.",
+    "OPTIONAL: Replace flat gradient hero image with a real home-services photo."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 895 lines — close to the 700-line guideline. Consider splitting into routers/auth.py, routers/bookings.py, routers/admin.py for maintainability.",
+    "Booking status update endpoint does not validate transition order — any partner can mark a booking completed directly, which credits wallet. Add state-machine validation.",
+    "No rate limiting / brute-force protection on /api/auth/login.",
+    "`admin_stats today_bookings` and `monthly_revenue` use regex over the ISO string `created_at` field — works but fragile; consider storing `created_at` as native datetime + range queries.",
+    "set_auth_cookies hardcodes secure=True samesite=none, which means local non-HTTPS testing breaks. The pytest suite needed to use REACT_APP_BACKEND_URL (public HTTPS) — backend has no LOCAL_DEV toggle. Document this for local devs.",
+    "FastAPI startup event uses deprecated @app.on_event; switch to lifespan handlers for FastAPI ≥0.95."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_kaamhub_api.py"
+  ],
+  "success_rate": {"backend": "100% (26/26)", "frontend": "100% on tested flows"},
+  "test_credentials": "Admin: admin@kaamhub.in / Admin@12345. Test users created dynamically per run with TEST_/uitest_ prefix.",
+  "seed_data_creation": "Test created several uitest_cust_*/uitest_part_* users and one booking + approved partner against the live preview backend. Cleanup not performed (test data is suffixed and harmless).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend uses httpOnly secure cookies with samesite=none. Local pytest from inside container against http://localhost:8001 will FAIL because requests-lib won't send Secure cookies over http. Use the REACT_APP_BACKEND_URL (https preview URL) — the test file already auto-reads it from /app/frontend/.env. pytest config (/app/backend/pytest.ini) forces -n 2 --dist loadscope; module-scoped fixtures may run twice (once per worker), so the register fixture uses register-or-login fallback. Test data: emails prefixed uitest_/test_ with random hex suffix per run.",
+  "rca of the issue": "N/A — no blocking bugs found. Initial pytest failures were due to (a) localhost http vs Secure cookies (resolved by reading REACT_APP_BACKEND_URL from frontend/.env) and (b) module-scoped register fixture running on both xdist workers and hitting duplicate-email (resolved with register-or-login fallback)."
+}
