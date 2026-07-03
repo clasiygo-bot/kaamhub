@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Search, MapPin, Wrench, Zap, Sparkles, Wind, Hammer, Star, ArrowRight, Tag } from "lucide-react";
 import api from "@/lib/api";
 import { detectLocation, getCachedLocation, clearLocationCache } from "@/lib/location";
+import BannerCarousel from "@/components/BannerCarousel";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 
@@ -13,6 +14,7 @@ export default function CustomerHome() {
   const [services, setServices] = useState([]);
   const [categories, setCategories] = useState([]);
   const [offers, setOffers] = useState([]);
+  const [banners, setBanners] = useState([]);
   const [recentBookings, setRecentBookings] = useState([]);
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState("All");
@@ -36,6 +38,7 @@ export default function CustomerHome() {
     api.get("/services").then((r) => setServices(r.data));
     api.get("/categories").then((r) => setCategories(r.data));
     api.get("/offers").then((r) => setOffers(r.data));
+    api.get("/banners", { params: { placement: "customer_home" } }).then((r) => setBanners(r.data)).catch(()=>{});
     api.get("/bookings/mine").then((r) => setRecentBookings(r.data.slice(0, 3)));
     if (!getCachedLocation()) detect(false); else setLocation(getCachedLocation().short_name);
   }, []);
@@ -74,6 +77,13 @@ export default function CustomerHome() {
           />
         </div>
       </section>
+
+      {/* Banners */}
+      {banners.length > 0 && (
+        <section>
+          <BannerCarousel banners={banners} testid="customer-home-banners"/>
+        </section>
+      )}
 
       {/* Offers */}
       {offers.length > 0 && (

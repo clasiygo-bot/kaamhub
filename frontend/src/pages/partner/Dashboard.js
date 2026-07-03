@@ -1,14 +1,20 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Briefcase, Wallet, Clock, CheckCircle2, AlertCircle, ArrowRight, Star, Power } from "lucide-react";
+import { Briefcase, Wallet, Clock, CheckCircle2, AlertCircle, ArrowRight, Star, Power, Bell, Send } from "lucide-react";
 import api, { formatError } from "@/lib/api";
 import { toast } from "sonner";
+import BannerCarousel from "@/components/BannerCarousel";
 
 export default function PartnerDashboard() {
   const [partner, setPartner] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [wallet, setWallet] = useState({ balance: 0, total_earned: 0 });
   const [available, setAvailable] = useState([]);
+  const [banners, setBanners] = useState([]);
+  const [bonuses, setBonuses] = useState([]);
+  const [notifPerm, setNotifPerm] = useState(typeof Notification !== "undefined" ? Notification.permission : "default");
+  const seenIdsRef = useRef(new Set());
+  const firstLoadRef = useRef(true);
 
   const refresh = async () => {
     const [p, b, w] = await Promise.all([
@@ -21,21 +27,52 @@ export default function PartnerDashboard() {
     setWallet(w.data.wallet);
     if (p.data.status === "approved") {
       const av = await api.get("/bookings/available");
+      // detect new bookings vs seen set; on first load just populate seen set
+      if (firstLoadRef.current) {
+        av.data.forEach((x) => seenIdsRef.current.add(x.id));
+        firstLoadRef.current = false;
+      } else {
+        const fresh = av.data.filter((x) => !seenIdsRef.current.has(x.id));
+        fresh.forEach((x) => seenIdsRef.current.add(x.id));
+        if (fresh.length > 0 && typeof Notification !== "undefined" && Notification.permission === "granted") {
+          try {
+            new Notification("🔔 New KaamHub booking", { body: `${fresh[0].service?.name || "Service"} • ${fresh[0].address}`, tag: fresh[0].id });
+          } catch { /* noop */ }
+        }
+      }
       setAvailable(av.data);
     }
   };
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+    api.get("/banners", { params: { placement: "partner_home" } }).then((r) => setBanners(r.data)).catch(()=>{});
+    api.get("/partner/bonuses").then((r) => setBonuses(r.data)).catch(()=>{});
+    const t = setInterval(refresh, 15000);
+    return () => clearInterval(t);
+  }, []);
+
+  const enableNotifications = async () => {
+    if (typeof Notification === "undefined") return toast.error("Notifications not supported on this browser");
+    const perm = await Notification.requestPermission();
+    setNotifPerm(perm);
+    if (perm === "granted") toast.success("Notifications enabled — you'll get instant alerts for new bookings.");
+    else toast.error("Notifications blocked. Enable them from your browser settings.");
+  };
 
   const toggleOnline = async () => {
     try { const { data } = await api.post("/partner/online", { online: !partner.online }); setPartner({ ...partner, online: data.online }); }
     catch (e) { toast.error(formatError(e.response?.data?.detail)); }
   };
 
+  const shareOnWA = (b) => {
+    const msg = `New KaamHub booking\n\n${b.service?.name}\n${b.address}\n${b.date} at ${b.time}\n₹${b.amount}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener");
+  };
+
   const accept = async (id) => {
     try {
       await api.post(`/bookings/${id}/accept`);
       toast.success("Booking accepted — opening Google Maps…");
-      // Find the accepted booking from local 'available' list to build maps URL
       const b = available.find((x) => x.id === id);
       if (b) {
         const dest = (b.lat != null && b.lng != null) ? `${b.lat},${b.lng}` : encodeURIComponent(b.address || "");
@@ -61,6 +98,20 @@ export default function PartnerDashboard() {
 
   return (
     <div className="space-y-6">
+      {banners.length > 0 && <BannerCarousel banners={banners} testid="partner-home-banners"/>}
+      {notifPerm !== "granted" && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Bell className="w-5 h-5 text-amber-600 flex-shrink-0"/>
+            <div className="text-sm">
+              <div className="font-semibold text-amber-900">Enable instant notifications</div>
+              <div className="text-amber-800 text-xs mt-0.5">Get an alert the moment a new booking arrives.</div>
+            </div>
+          </div>
+          <button data-testid="enable-notifications-button" onClick={enableNotifications} className="kh-cta px-4 py-2 text-sm whitespace-nowrap">Turn on</button>
+        </div>
+      )}
+
       {/* Status bar */}
       <div className="rounded-3xl bg-gradient-to-br from-[#0F2D5C] to-[#1a3a73] text-white p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -101,7 +152,12 @@ export default function PartnerDashboard() {
                   </div>
                 </div>
                 <div className="mt-2 text-xs text-slate-500 line-clamp-2">{b.address}</div>
-                <button onClick={()=>accept(b.id)} data-testid={`accept-booking-${b.id}`} className="kh-cta w-full py-2 mt-3 text-sm">Accept</button>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button onClick={()=>accept(b.id)} data-testid={`accept-booking-${b.id}`} className="kh-cta py-2 text-sm">Accept</button>
+                  <button onClick={()=>shareOnWA(b)} data-testid={`wa-share-${b.id}`} className="py-2 rounded-full border border-emerald-300 text-emerald-700 text-sm font-semibold inline-flex items-center justify-center gap-1 hover:bg-emerald-50">
+                    <Send className="w-3.5 h-3.5"/>WhatsApp
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -130,6 +186,24 @@ export default function PartnerDashboard() {
           </div>
         )}
       </section>
+
+      {/* Bonuses */}
+      {bonuses.length > 0 && (
+        <section>
+          <h2 className="text-xl font-bold mb-3" style={{fontFamily:"Outfit"}}>Your bonuses</h2>
+          <div className="space-y-2">
+            {bonuses.slice(0,5).map((bo)=>(
+              <div key={bo.id} data-testid={`bonus-row-${bo.id}`} className="flex items-center justify-between bg-white rounded-2xl p-4 kh-shadow-card">
+                <div>
+                  <div className="font-semibold text-[#0F2D5C]">🎉 ₹{bo.amount}</div>
+                  <div className="text-xs text-slate-500 mt-0.5">{bo.reason}</div>
+                </div>
+                <div className="text-xs text-slate-400">{new Date(bo.created_at).toLocaleDateString()}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { CheckCircle2, Eye, X } from "lucide-react";
+import { CheckCircle2, Eye, X, Send } from "lucide-react";
 import api, { formatError } from "@/lib/api";
 
 const statusColor = {
@@ -75,6 +75,16 @@ export default function AdminBookings() {
                     )}
                     {b.payment_status === "paid" && (
                       <button onClick={()=>markUnpaid(b.id)} data-testid={`mark-unpaid-button-${b.id}`} className="text-xs px-3 py-1 rounded-full border border-slate-200 inline-flex items-center gap-1"><X className="w-3 h-3"/>Undo</button>
+                    )}
+                    {b.partner?.phone && (
+                      <a
+                        data-testid={`wa-send-${b.id}`}
+                        target="_blank" rel="noopener noreferrer"
+                        href={`https://wa.me/${(b.partner.phone||'').replace(/[^0-9]/g,'')}?text=${encodeURIComponent(`Hi ${b.partner.name}, new KaamHub booking:\n\n${b.service?.name}\n${b.address}\n${b.date} at ${b.time}\nCustomer: ${b.customer?.name} (${b.customer?.phone || 'no phone'})\nAmount: ₹${b.amount}`)}`}
+                        className="text-xs px-3 py-1 rounded-full bg-emerald-600 text-white inline-flex items-center gap-1"
+                      >
+                        <Send className="w-3 h-3"/>WhatsApp
+                      </a>
                     )}
                   </td>
                 </tr>

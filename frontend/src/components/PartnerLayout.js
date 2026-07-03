@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Briefcase, Wallet, UserCog, LogOut } from "lucide-react";
+import { LayoutDashboard, Briefcase, Wallet, LifeBuoy, UserCog, LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import Logo from "@/components/Logo";
 
@@ -8,6 +8,7 @@ const items = [
   { to: "/partner", icon: LayoutDashboard, label: "Dashboard", testid: "nav-partner-dashboard", end: true },
   { to: "/partner/jobs", icon: Briefcase, label: "Jobs", testid: "nav-partner-jobs" },
   { to: "/partner/wallet", icon: Wallet, label: "Wallet", testid: "nav-partner-wallet" },
+  { to: "/partner/support", icon: LifeBuoy, label: "Support", testid: "nav-partner-support" },
   { to: "/partner/onboarding", icon: UserCog, label: "Profile", testid: "nav-partner-profile" },
 ];
 
@@ -51,7 +52,7 @@ export default function PartnerLayout({ children }) {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">{children}</main>
 
-      <nav className="kh-bottom-nav fixed sm:hidden bottom-0 inset-x-0 z-30 grid grid-cols-4 h-16">
+      <nav className="kh-bottom-nav fixed sm:hidden bottom-0 inset-x-0 z-30 grid grid-cols-5 h-16">
         {items.map((it) => (
           <NavLink
             key={it.to}

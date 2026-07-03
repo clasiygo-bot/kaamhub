@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { BarChart3, ShieldCheck, ClipboardList, Banknote, Wrench, Users, Megaphone, LogOut, CreditCard } from "lucide-react";
+import { BarChart3, ShieldCheck, ClipboardList, Banknote, Wrench, Users, Megaphone, LogOut, CreditCard, Image as ImageIcon, LifeBuoy } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import Logo from "@/components/Logo";
 
@@ -12,6 +12,8 @@ const items = [
   { to: "/admin/payment-settings", icon: CreditCard, label: "Payments", testid: "nav-admin-payments" },
   { to: "/admin/services", icon: Wrench, label: "Services", testid: "nav-admin-services" },
   { to: "/admin/offers", icon: Megaphone, label: "Offers", testid: "nav-admin-offers" },
+  { to: "/admin/banners", icon: ImageIcon, label: "Banners", testid: "nav-admin-banners" },
+  { to: "/admin/tickets", icon: LifeBuoy, label: "Support", testid: "nav-admin-tickets" },
   { to: "/admin/users", icon: Users, label: "Users", testid: "nav-admin-users" },
 ];
 

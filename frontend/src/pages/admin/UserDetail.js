@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Mail, Phone, Calendar, ShieldCheck, Save, Trash2, Power } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Calendar, ShieldCheck, Save, Trash2, Power, Gift } from "lucide-react";
 import api, { formatError } from "@/lib/api";
 
 const statusColor = {
@@ -19,6 +19,8 @@ export default function AdminUserDetail() {
   const [data, setData] = useState(null);
   const [edit, setEdit] = useState({ name: "", phone: "" });
   const [busy, setBusy] = useState(false);
+  const [bonusForm, setBonusForm] = useState({ amount: "", reason: "" });
+  const [showBonus, setShowBonus] = useState(false);
 
   const load = () => api.get(`/admin/users/${id}`).then((r) => {
     setData(r.data);
@@ -42,6 +44,18 @@ export default function AdminUserDetail() {
     if (!confirm("Delete this user permanently?")) return;
     try { await api.delete(`/admin/users/${id}`); toast.success("Deleted"); nav("/admin/users"); }
     catch (e) { toast.error(formatError(e.response?.data?.detail)); }
+  };
+
+  const giveBonus = async () => {
+    const amt = Number(bonusForm.amount);
+    if (!amt || amt <= 0) return toast.error("Enter a valid amount");
+    if (!bonusForm.reason.trim()) return toast.error("Enter a reason");
+    try {
+      await api.post(`/admin/partners/${id}/bonus`, { amount: amt, reason: bonusForm.reason });
+      toast.success(`₹${amt} bonus credited to partner`);
+      setShowBonus(false); setBonusForm({ amount: "", reason: "" });
+      load();
+    } catch (e) { toast.error(formatError(e.response?.data?.detail)); }
   };
 
   if (!data) return <div className="py-20 text-center text-slate-400">Loading…</div>;
@@ -140,10 +154,28 @@ export default function AdminUserDetail() {
 
       {/* Partner wallet */}
       {u.role === "partner" && data.wallet && (
-        <div className="grid grid-cols-2 gap-4">
-          <Stat label="Wallet balance" value={`₹${data.wallet.balance || 0}`} accent/>
-          <Stat label="Total earned" value={`₹${data.wallet.total_earned || 0}`}/>
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <Stat label="Wallet balance" value={`₹${data.wallet.balance || 0}`} accent/>
+            <Stat label="Total earned" value={`₹${data.wallet.total_earned || 0}`}/>
+          </div>
+          <div className="rounded-3xl bg-white kh-shadow-card p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Gift className="w-5 h-5 text-[#FF8A00]"/>
+                <h2 className="text-lg font-bold">Give bonus</h2>
+              </div>
+              <button data-testid="toggle-bonus-form" onClick={()=>setShowBonus(!showBonus)} className="kh-outline px-4 py-1.5 text-xs">{showBonus?"Cancel":"Credit bonus"}</button>
+            </div>
+            {showBonus && (
+              <div className="mt-4 grid sm:grid-cols-2 gap-3">
+                <input data-testid="bonus-amount-input" type="number" min="1" value={bonusForm.amount} onChange={(e)=>setBonusForm({...bonusForm, amount: e.target.value})} placeholder="Amount ₹" className="px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#FF8A00]"/>
+                <input data-testid="bonus-reason-input" value={bonusForm.reason} onChange={(e)=>setBonusForm({...bonusForm, reason: e.target.value})} placeholder="Reason (e.g. Top-rated partner)" className="px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#FF8A00]"/>
+                <button data-testid="submit-bonus-button" onClick={giveBonus} className="kh-cta py-2.5 sm:col-span-2">Credit ₹{bonusForm.amount || "0"} to partner wallet</button>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Bookings */}

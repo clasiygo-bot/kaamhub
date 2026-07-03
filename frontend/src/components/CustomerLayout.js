@@ -1,13 +1,13 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Home, Calendar, Bell, User, LogOut } from "lucide-react";
+import { Home, Calendar, LifeBuoy, User, LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import Logo from "@/components/Logo";
 
 const items = [
   { to: "/customer", icon: Home, label: "Home", testid: "nav-customer-home", end: true },
   { to: "/customer/bookings", icon: Calendar, label: "Bookings", testid: "nav-customer-bookings" },
-  { to: "/customer/notifications", icon: Bell, label: "Alerts", testid: "nav-customer-notifications" },
+  { to: "/customer/support", icon: LifeBuoy, label: "Support", testid: "nav-customer-support" },
   { to: "/customer/profile", icon: User, label: "Profile", testid: "nav-customer-profile" },
 ];
 

@@ -223,6 +223,36 @@ class OfferIn(BaseModel):
     active: bool = True
 
 
+class BannerIn(BaseModel):
+    title: str
+    subtitle: Optional[str] = ""
+    image: str
+    link: Optional[str] = ""
+    placement: str = Field(pattern="^(customer_home|partner_home|both)$", default="customer_home")
+    active: bool = True
+    order: int = 0
+
+
+class BonusIn(BaseModel):
+    amount: float = Field(gt=0)
+    reason: str
+
+
+class TicketIn(BaseModel):
+    subject: str
+    message: str
+    priority: str = Field(pattern="^(low|normal|high)$", default="normal")
+    category: Optional[str] = "general"  # general | booking | payment | account | partner
+
+
+class TicketReplyIn(BaseModel):
+    message: str
+
+
+class TicketStatusIn(BaseModel):
+    status: str  # open | in_progress | resolved | closed
+
+
 # ---------------------- Auth Routes ----------------------
 @api.post("/auth/register")
 async def register(payload: RegisterIn, response: Response):
@@ -398,6 +428,7 @@ async def create_booking(payload: BookingIn, user: Dict = Depends(require_role("
     await db.bookings.insert_one(booking)
 
     # Notify nearby/available approved partners of this category (broadcast pool)
+    wa_text = f"New KaamHub booking%0A%0A{service.get('name')}%0A{payload.address}%0A{payload.date} at {payload.time}%0AAmount: ₹{service.get('price', 0)}"
     await db.notifications.insert_one({
         "id": str(uuid.uuid4()),
         "scope": "category",
@@ -405,6 +436,7 @@ async def create_booking(payload: BookingIn, user: Dict = Depends(require_role("
         "title": "New booking request",
         "body": f"{service.get('name')} • {payload.address}",
         "booking_id": booking["id"],
+        "wa_message": wa_text,
         "read": False,
         "created_at": iso(now_utc()),
     })
@@ -1182,6 +1214,215 @@ async def partner_mark_payment(bid: str, payload: PartnerPaymentIn, user: Dict =
     ])
     nb = await db.bookings.find_one({"id": bid})
     return await _booking_to_view(nb)
+
+
+# ---------------------- Banners ----------------------
+@api.get("/banners")
+async def list_banners(placement: Optional[str] = None, user: Dict = Depends(get_current_user)):
+    q: Dict[str, Any] = {"active": True}
+    if placement:
+        q["$or"] = [{"placement": placement}, {"placement": "both"}]
+    items = await db.banners.find(q, {"_id": 0}).sort("order", 1).to_list(50)
+    return items
+
+
+@api.get("/admin/banners")
+async def admin_list_banners(_: Dict = Depends(require_role("admin"))):
+    items = await db.banners.find({}, {"_id": 0}).sort("order", 1).to_list(200)
+    return items
+
+
+@api.post("/admin/banners")
+async def admin_create_banner(payload: BannerIn, _: Dict = Depends(require_role("admin"))):
+    doc = {"id": str(uuid.uuid4()), **payload.model_dump(), "created_at": iso(now_utc())}
+    await db.banners.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api.put("/admin/banners/{bid}")
+async def admin_update_banner(bid: str, payload: BannerIn, _: Dict = Depends(require_role("admin"))):
+    res = await db.banners.update_one({"id": bid}, {"$set": payload.model_dump()})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Not found")
+    doc = await db.banners.find_one({"id": bid}, {"_id": 0})
+    return doc
+
+
+@api.delete("/admin/banners/{bid}")
+async def admin_delete_banner(bid: str, _: Dict = Depends(require_role("admin"))):
+    await db.banners.delete_one({"id": bid})
+    return {"ok": True}
+
+
+# ---------------------- Partner Bonuses ----------------------
+@api.post("/admin/partners/{user_id}/bonus")
+async def admin_credit_bonus(user_id: str, payload: BonusIn, admin: Dict = Depends(require_role("admin"))):
+    partner = await db.users.find_one({"id": user_id, "role": "partner"})
+    if not partner:
+        raise HTTPException(404, "Partner not found")
+    now = iso(now_utc())
+    bonus = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "amount": payload.amount,
+        "reason": payload.reason,
+        "credited_by": admin["id"],
+        "created_at": now,
+    }
+    await db.bonuses.insert_one(bonus)
+    await db.wallets.update_one(
+        {"user_id": user_id},
+        {"$inc": {"balance": payload.amount, "total_earned": payload.amount},
+         "$setOnInsert": {"id": str(uuid.uuid4()), "user_id": user_id, "created_at": now}},
+        upsert=True,
+    )
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()), "user_id": user_id,
+        "title": "🎉 Bonus credited!",
+        "body": f"₹{payload.amount} bonus added: {payload.reason}",
+        "read": False, "created_at": now,
+    })
+    bonus.pop("_id", None)
+    return bonus
+
+
+@api.get("/admin/bonuses")
+async def admin_list_bonuses(_: Dict = Depends(require_role("admin"))):
+    items = await db.bonuses.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    for it in items:
+        u = await db.users.find_one({"id": it["user_id"]}, {"_id": 0, "password_hash": 0})
+        it["user"] = u
+    return items
+
+
+@api.get("/partner/bonuses")
+async def my_bonuses(user: Dict = Depends(require_role("partner"))):
+    items = await db.bonuses.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return items
+
+
+# ---------------------- Support Tickets ----------------------
+@api.post("/support/tickets")
+async def create_ticket(payload: TicketIn, user: Dict = Depends(get_current_user)):
+    if user["role"] == "admin":
+        raise HTTPException(400, "Admins cannot raise tickets")
+    now = iso(now_utc())
+    ticket = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "user_role": user["role"],
+        "subject": payload.subject,
+        "priority": payload.priority,
+        "category": payload.category or "general",
+        "status": "open",
+        "messages": [{
+            "id": str(uuid.uuid4()),
+            "author_id": user["id"],
+            "author_role": user["role"],
+            "author_name": user.get("name", ""),
+            "message": payload.message,
+            "at": now,
+        }],
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.tickets.insert_one(ticket)
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()), "scope": "admin",
+        "title": f"New {payload.priority} priority ticket",
+        "body": f"{user['name']}: {payload.subject}",
+        "ticket_id": ticket["id"], "read": False, "created_at": now,
+    })
+    ticket.pop("_id", None)
+    return ticket
+
+
+@api.get("/support/tickets/mine")
+async def my_tickets(user: Dict = Depends(get_current_user)):
+    if user["role"] == "admin":
+        return []
+    items = await db.tickets.find({"user_id": user["id"]}, {"_id": 0}).sort("updated_at", -1).to_list(200)
+    return items
+
+
+@api.get("/support/tickets/{tid}")
+async def get_ticket(tid: str, user: Dict = Depends(get_current_user)):
+    t = await db.tickets.find_one({"id": tid}, {"_id": 0})
+    if not t:
+        raise HTTPException(404, "Not found")
+    if user["role"] != "admin" and t["user_id"] != user["id"]:
+        raise HTTPException(403, "Forbidden")
+    return t
+
+
+@api.post("/support/tickets/{tid}/reply")
+async def reply_ticket(tid: str, payload: TicketReplyIn, user: Dict = Depends(get_current_user)):
+    t = await db.tickets.find_one({"id": tid})
+    if not t:
+        raise HTTPException(404, "Not found")
+    if user["role"] != "admin" and t["user_id"] != user["id"]:
+        raise HTTPException(403, "Forbidden")
+    now = iso(now_utc())
+    msg = {
+        "id": str(uuid.uuid4()),
+        "author_id": user["id"],
+        "author_role": user["role"],
+        "author_name": user.get("name", ""),
+        "message": payload.message,
+        "at": now,
+    }
+    updates = {"$push": {"messages": msg}, "$set": {"updated_at": now}}
+    if user["role"] == "admin" and t.get("status") == "open":
+        updates["$set"]["status"] = "in_progress"
+    await db.tickets.update_one({"id": tid}, updates)
+    # notify the other side
+    if user["role"] == "admin":
+        await db.notifications.insert_one({
+            "id": str(uuid.uuid4()), "user_id": t["user_id"],
+            "title": f"Support replied: {t['subject']}",
+            "body": payload.message[:120],
+            "ticket_id": tid, "read": False, "created_at": now,
+        })
+    else:
+        await db.notifications.insert_one({
+            "id": str(uuid.uuid4()), "scope": "admin",
+            "title": f"Ticket reply: {t['subject']}",
+            "body": f"{user['name']}: {payload.message[:120]}",
+            "ticket_id": tid, "read": False, "created_at": now,
+        })
+    nt = await db.tickets.find_one({"id": tid}, {"_id": 0})
+    return nt
+
+
+@api.get("/admin/tickets")
+async def admin_list_tickets(status_filter: Optional[str] = None, _: Dict = Depends(require_role("admin"))):
+    q: Dict[str, Any] = {}
+    if status_filter and status_filter != "all":
+        q["status"] = status_filter
+    items = await db.tickets.find(q, {"_id": 0}).sort("updated_at", -1).to_list(500)
+    for it in items:
+        u = await db.users.find_one({"id": it["user_id"]}, {"_id": 0, "password_hash": 0})
+        it["user"] = u
+    return items
+
+
+@api.post("/admin/tickets/{tid}/status")
+async def admin_update_ticket_status(tid: str, payload: TicketStatusIn, _: Dict = Depends(require_role("admin"))):
+    if payload.status not in {"open", "in_progress", "resolved", "closed"}:
+        raise HTTPException(400, "Invalid status")
+    t = await db.tickets.find_one({"id": tid})
+    if not t:
+        raise HTTPException(404, "Not found")
+    await db.tickets.update_one({"id": tid}, {"$set": {"status": payload.status, "updated_at": iso(now_utc())}})
+    if payload.status in {"resolved", "closed"}:
+        await db.notifications.insert_one({
+            "id": str(uuid.uuid4()), "user_id": t["user_id"],
+            "title": f"Ticket {payload.status}: {t['subject']}",
+            "body": "Your support ticket has been marked " + payload.status + ".",
+            "ticket_id": tid, "read": False, "created_at": iso(now_utc()),
+        })
+    return {"ok": True}
 
 
 # ---------------------- Health ----------------------
