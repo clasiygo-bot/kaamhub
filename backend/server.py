@@ -1508,8 +1508,8 @@ async def startup():
             await db.offers.insert_one({"id": str(uuid.uuid4()), **o, "created_at": iso(now_utc())})
 
     # seed admin
-    admin_email = os.environ.get("ADMIN_EMAIL", "admin@kaamhub.in").lower()
-    admin_pw = os.environ.get("ADMIN_PASSWORD", "Admin@12345")
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@kaamhub.io").lower()
+    admin_pw = os.environ.get("ADMIN_PASSWORD", "Arman@935276")
     # Drop any other admin accounts so only the configured one exists
     await db.users.delete_many({"role": "admin", "email": {"$ne": admin_email}})
     existing = await db.users.find_one({"email": admin_email})
