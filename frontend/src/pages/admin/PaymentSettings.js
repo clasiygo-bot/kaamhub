@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Save, QrCode, Smartphone, CreditCard, ShieldCheck } from "lucide-react";
+import { Save, QrCode, Smartphone, CreditCard, ShieldCheck, Upload } from "lucide-react";
 import api, { formatError } from "@/lib/api";
+import { readFileAsDataURL } from "@/lib/file";
 
 export default function PaymentSettings() {
   const [s, setS] = useState(null);
@@ -36,7 +37,30 @@ export default function PaymentSettings() {
       {/* UPI QR */}
       <Card icon={QrCode} title="Manual UPI QR" desc="Upload your own UPI QR image. Customer scans + pays, partner confirms on completion.">
         <Toggle testid="toggle-qr" label="Enable QR payment" value={s.enable_qr} onChange={(v)=>set("enable_qr", v)}/>
-        <TF label="QR image URL (publicly accessible)" testid="qr-image-url" value={s.qr_image_url} onChange={(v)=>set("qr_image_url",v)} placeholder="https://…/my-qr.png"/>
+        <TF label="QR image URL (optional)" testid="qr-image-url" value={s.qr_image_url} onChange={(v)=>set("qr_image_url",v)} placeholder="https://…/my-qr.png"/>
+        <div>
+          <label className="text-sm font-medium text-slate-700">Or upload QR from your phone</label>
+          <label className="mt-1 flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-slate-300 hover:border-[#FF8A00] cursor-pointer transition">
+            <Upload className="w-4 h-4 text-slate-500"/>
+            <span className="text-sm text-slate-600">Choose QR image (jpg/png)</span>
+            <input
+              data-testid="qr-image-upload"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const dataUrl = await readFileAsDataURL(file, { maxWidth: 900, quality: 0.9 });
+                  set("qr_image_url", dataUrl);
+                  toast.success("QR loaded — click Save to activate");
+                } catch (err) { toast.error(err.message || "Could not read file"); }
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
         {s.qr_image_url && <img src={s.qr_image_url} alt="QR preview" className="mt-3 w-40 h-40 object-contain border border-slate-200 rounded-xl bg-white p-2"/>}
       </Card>
 

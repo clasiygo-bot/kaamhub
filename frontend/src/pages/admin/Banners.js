@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Edit2, Image as ImageIcon, X } from "lucide-react";
+import { Plus, Trash2, Edit2, Image as ImageIcon, X, Upload } from "lucide-react";
 import api, { formatError } from "@/lib/api";
+import { readFileAsDataURL } from "@/lib/file";
 
 const EMPTY = { title: "", subtitle: "", image: "", link: "", placement: "customer_home", active: true, order: 0 };
 
@@ -47,7 +48,30 @@ export default function Banners() {
           <div className="grid sm:grid-cols-2 gap-3">
             <TF label="Title" testid="banner-title" value={form.title} onChange={(v)=>setForm({...form,title:v})} required/>
             <TF label="Subtitle" testid="banner-subtitle" value={form.subtitle} onChange={(v)=>setForm({...form,subtitle:v})}/>
-            <TF label="Image URL" testid="banner-image" value={form.image} onChange={(v)=>setForm({...form,image:v})} required placeholder="https://…"/>
+            <TF label="Image URL (or upload below)" testid="banner-image" value={form.image} onChange={(v)=>setForm({...form,image:v})} placeholder="https://…  or leave empty and upload"/>
+            <div>
+              <label className="text-sm font-medium text-slate-700">Or upload from device</label>
+              <label className="mt-1 flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-slate-300 hover:border-[#FF8A00] cursor-pointer transition">
+                <Upload className="w-4 h-4 text-slate-500"/>
+                <span className="text-sm text-slate-600">Choose image (jpg/png/webp)</span>
+                <input
+                  data-testid="banner-image-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      const dataUrl = await readFileAsDataURL(file, { maxWidth: 1600, quality: 0.85 });
+                      setForm((f) => ({ ...f, image: dataUrl }));
+                      toast.success("Image loaded — click Save to publish");
+                    } catch (err) { toast.error(err.message || "Could not read file"); }
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
             <TF label="Link (optional)" testid="banner-link" value={form.link} onChange={(v)=>setForm({...form,link:v})} placeholder="/customer or https://…"/>
             <div>
               <label className="text-sm font-medium text-slate-700">Placement</label>

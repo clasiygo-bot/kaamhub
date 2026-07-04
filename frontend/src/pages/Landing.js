@@ -18,8 +18,8 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-2">
-            <Link data-testid="landing-login-link" to="/login" className="kh-outline px-4 py-2 text-sm">Login</Link>
-            <Link data-testid="landing-register-link" to="/register" className="kh-cta px-4 py-2 text-sm inline-flex items-center gap-1">
+            <Link data-testid="landing-login-link" to="/user/login" className="kh-outline px-4 py-2 text-sm">Login</Link>
+            <Link data-testid="landing-register-link" to="/user/register" className="kh-cta px-4 py-2 text-sm inline-flex items-center gap-1">
               Get Started <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -42,10 +42,10 @@ export default function Landing() {
               Book vetted professionals for plumbing, electrical, cleaning, AC repair, and more. <strong>Har Kaam, Ab Hoga Aasaan!</strong>
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link data-testid="landing-book-cta" to="/register" className="kh-cta px-6 py-3 inline-flex items-center gap-2">
+              <Link data-testid="landing-book-cta" to="/user/register" className="kh-cta px-6 py-3 inline-flex items-center gap-2">
                 Book a Service <ArrowRight className="w-4 h-4" />
               </Link>
-              <Link data-testid="landing-partner-cta" to="/register" className="kh-outline px-6 py-3">Become a Partner</Link>
+              <Link data-testid="landing-partner-cta" to="/partner/register" className="kh-outline px-6 py-3">Become a Partner</Link>
             </div>
             <div className="mt-10 grid grid-cols-3 gap-4 max-w-md">
               {[
@@ -112,7 +112,7 @@ export default function Landing() {
             <h3 className="text-2xl sm:text-3xl font-bold" style={{ fontFamily: "Outfit" }}>Ready to fix things the easy way?</h3>
             <p className="text-white/80 mt-2">Sign up in 30 seconds. Pay only after the job is done.</p>
           </div>
-          <Link data-testid="landing-bottom-cta" to="/register" className="kh-cta px-7 py-3.5 text-base whitespace-nowrap">Get the App</Link>
+          <Link data-testid="landing-bottom-cta" to="/user/register" className="kh-cta px-7 py-3.5 text-base whitespace-nowrap">Get the App</Link>
         </div>
       </section>
 

@@ -8,6 +8,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import LoginScoped from "@/pages/LoginScoped";
+import RegisterScoped from "@/pages/RegisterScoped";
 
 import CustomerLayout from "@/components/CustomerLayout";
 import CustomerHome from "@/pages/customer/Home";
@@ -55,6 +57,10 @@ function AppRoutes() {
       <Route path="/" element={<RoleHomeRedirect />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/user/login" element={<LoginScoped role="customer" heroTitle={<>Welcome back <br/><span className="text-[#FF8A00]">Customer</span></>} heroSubtitle="Book verified pros — pay only after the job." />} />
+      <Route path="/user/register" element={<RegisterScoped role="customer" heroTitle={<>Book home services <br/><span className="text-[#FF8A00]">at your doorstep</span></>} ctaLabel="Create customer account"/>} />
+      <Route path="/partner/login" element={<LoginScoped role="partner" heroTitle={<>Welcome back <br/><span className="text-[#FF8A00]">Partner</span></>} heroSubtitle="Earn on your own schedule. Get instant job alerts." features={["Instant booking alerts","Weekly payouts","Rating-based bonuses"]}/>} />
+      <Route path="/partner/register" element={<RegisterScoped role="partner" heroTitle={<>Earn with <span className="text-[#FF8A00]">KaamHub</span></>} heroSubtitle="Sign up. Verify. Start earning within 24 hrs." ctaLabel="Become a partner"/>} />
       <Route path="/payment/:result" element={<PaymentResult />} />
 
       {/* Customer */}
