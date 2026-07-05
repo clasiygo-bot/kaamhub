@@ -459,9 +459,13 @@ async def my_bookings(user: Dict = Depends(get_current_user)):
 @api.get("/bookings/available")
 async def available_bookings(user: Dict = Depends(require_role("partner"))):
     # Show pending bookings matching partner's category if approved
-    partner = await db.partners.find_one({"user_id": user["id"]})
-    if not partner or partner.get("status") != "approved":
-        return []
+    partner = await db.partners.find_one({
+    "user_id": user["id"],
+    "status": "approved",
+    "online": True
+})
+if not partner:
+    return[]
     cat = partner.get("service_category", "")
     q = {"status": "pending", "partner_id": None}
     if cat:
