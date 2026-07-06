@@ -41,8 +41,6 @@ import AdminTickets from "@/pages/admin/Tickets";
 import Support from "@/pages/Support";
 import PaymentResult from "@/pages/PaymentResult";
 
-import AboutUs from "@/pages/AboutUs";
-
 export default function AboutUs() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-6">
@@ -171,8 +169,6 @@ function AppRoutes() {
       <Route path="/admin/banners" element={<ProtectedRoute roles={["admin"]}><AdminLayout><AdminBanners/></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/tickets" element={<ProtectedRoute roles={["admin"]}><AdminLayout><AdminTickets/></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/offers" element={<ProtectedRoute roles={["admin"]}><AdminLayout><AdminOffers/></AdminLayout></ProtectedRoute>} />
-
-      <Route path="/about-us" element={<AboutUs />} />
         
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
