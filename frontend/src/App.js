@@ -172,6 +172,8 @@ function AppRoutes() {
       <Route path="/admin/tickets" element={<ProtectedRoute roles={["admin"]}><AdminLayout><AdminTickets/></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/offers" element={<ProtectedRoute roles={["admin"]}><AdminLayout><AdminOffers/></AdminLayout></ProtectedRoute>} />
 
+      <Route path="/about-us" element={<AboutUs />} />
+        
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
