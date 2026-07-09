@@ -109,6 +109,27 @@ function AppRoutes() {
 
 export default function App() {
   const [splashed, setSplashed] = useState(false);
+
+  useEffect(() => {
+    Notification.requestPermission().then((permission) => {
+      if (permission === "granted") {
+        getToken(messaging, {
+          vapidKey: "BLVMN483Yo6UzocR6YpiduHdEdI8UZE1HyTbuhPS8FUUJh4toDu62SIkjU0p7MCj6UYp0OzcLLmZ3lupLIt6crs"
+        })
+          .then((currentToken) => {
+            if (currentToken) {
+              console.log("FCM Token:", currentToken);
+
+              // Baad me is token ko MongoDB me save karenge
+            }
+          })
+          .catch((err) => {
+            console.error("FCM Error:", err);
+          });
+      }
+    });
+  }, []);
+  
   return (
     <AuthProvider>
       <BrowserRouter>
