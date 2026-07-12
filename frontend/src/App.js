@@ -47,6 +47,7 @@ import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsConditions from "@/pages/TermsConditions";
 import RefundPolicy from "@/pages/RefundPolicy";
 import CancellationPolicy from "@/pages/CancellationPolicy";
+import ContactUs from "@/pages/ContactUs";
 
 import "@/App.css";
 
@@ -74,6 +75,7 @@ function AppRoutes() {
       <Route path="/terms-and-conditions" element={<TermsConditions />} />
       <Route path="/refund-policy" element={<RefundPolicy />} />
       <Route path="/cancellation-policy" element={<CancellationPolicy />} />
+      <Route path="/contact-us" element={<ContactUs />} />
   
       {/* Customer */}
       <Route
