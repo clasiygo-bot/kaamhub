@@ -145,6 +145,10 @@ export default function Landing() {
       <Link to="/refund-policy" className="text-sm hover:text-orange-500">
         Refund Policy
       </Link>
+
+        <Link to="/cancellation-policy" className="text-sm hover:text-orange-500">
+          Cancellation Policy
+        </Link>
     </div>
 
   </div>
