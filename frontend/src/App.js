@@ -42,6 +42,7 @@ import AdminBanners from "@/pages/admin/Banners";
 import AdminTickets from "@/pages/admin/Tickets";
 import Support from "@/pages/Support";
 import PaymentResult from "@/pages/PaymentResult";
+import AboutUs from "@/pages/AboutUs";
 
 import "@/App.css";
 
