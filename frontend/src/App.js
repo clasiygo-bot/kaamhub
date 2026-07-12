@@ -43,6 +43,7 @@ import AdminTickets from "@/pages/admin/Tickets";
 import Support from "@/pages/Support";
 import PaymentResult from "@/pages/PaymentResult";
 import AboutUs from "@/pages/AboutUs";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
 
 import "@/App.css";
 
@@ -66,6 +67,7 @@ function AppRoutes() {
       <Route path="/partner/register" element={<RegisterScoped role="partner" heroTitle={<>Earn with <span className="text-[#FF8A00]">KaamHub</span></>} heroSubtitle="Sign up. Verify. Start earning within 24 hrs." ctaLabel="Become a partner"/>} />
       <Route path="/payment/:result" element={<PaymentResult />} />
       <Route path="/about-us" element={<AboutUs />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
   
       {/* Customer */}
       <Route
