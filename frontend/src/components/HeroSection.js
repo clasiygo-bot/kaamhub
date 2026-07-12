@@ -167,7 +167,6 @@ export default function HeroSection() {
               <img
                 src="/hero-logo.png"
                 alt="KaamHub"
-                className="w-[420px] max-w-full mx-auto hover:scale-105 transition-all duration-500"
               />
 
               {/* Verified Card */}
