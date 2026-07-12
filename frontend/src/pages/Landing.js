@@ -1,3 +1,4 @@
+import HeroSection from "@/components/HeroSection";
 import Footer from "@/components/Footer";
 import React from "react";
 import { Link } from "react-router-dom";
@@ -28,59 +29,8 @@ export default function Landing() {
       </header>
 
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-white via-orange-50 to-blue-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 grid lg:grid-cols-2 gap-10 items-center">
-          <div className="kh-fade-up">
-            <span className="kh-chip bg-orange-100 text-[#FF8A00] inline-flex items-center gap-1">
-              <Star className="w-3 h-3 fill-[#FF8A00] text-[#FF8A00]" /> Trusted by 50,000+ homes
-            </span>
-            <h1 className="mt-6 text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight" style={{ fontFamily: "Outfit" }}>
-              Home services
-              <br />
-              <span className="text-[#FF8A00]">at your doorstep.</span>
-            </h1>
-            <p className="mt-5 text-lg text-slate-600 max-w-xl">
-              Book vetted professionals for plumbing, electrical, cleaning, AC repair, and more. <strong>Har Kaam, Ab Hoga Aasaan!</strong>
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link data-testid="landing-book-cta" to="/user/register" className="kh-cta px-6 py-3 inline-flex items-center gap-2">
-                Book a Service <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link data-testid="landing-partner-cta" to="/partner/register" className="kh-outline px-6 py-3">Become a Partner</Link>
-            </div>
-            <div className="mt-10 grid grid-cols-3 gap-4 max-w-md">
-              {[
-                { icon: ShieldCheck, label: "Verified Pros" },
-                { icon: Clock, label: "On-Time" },
-                { icon: Star, label: "Top Rated" },
-              ].map((f) => (
-                <div key={f.label} className="flex flex-col items-start gap-1">
-                  <f.icon className="w-5 h-5 text-[#0F2D5C]" />
-                  <span className="text-sm font-medium text-slate-700">{f.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative kh-fade-up" style={{ animationDelay: ".15s" }}>
-            <div className="absolute -inset-6 bg-orange-100 rounded-[3rem] -z-10" />
-            <img
-              src="https://images.unsplash.com/photo-1614850715649-1d0106293bd1?w=900&q=80"
-              alt="KaamHub Pro at work"
-              className="rounded-[2rem] kh-shadow-card w-full object-cover aspect-[4/3]"
-            />
-            <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl kh-shadow-card p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#0F2D5C] text-white flex items-center justify-center">
-                <Wrench className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">Active Partners</div>
-                <div className="text-lg font-bold text-[#0F2D5C]">2,400+</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+     <HeroSection />
+        
 
       {/* Service grid */}
       <section className="bg-slate-50 border-y border-slate-200">
