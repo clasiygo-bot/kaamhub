@@ -5,12 +5,23 @@ import {
   Star,
   ShieldCheck,
   Clock,
-  Users
+  Users,
+  Sparkles
 } from "lucide-react";
 
 export default function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-white via-orange-50 to-blue-50">
+    <section className="relative overflow-hidden bg-gradient-to-br from-slate-50 via-white to-orange-50">
+
+  <div className="absolute -top-32 -left-32 w-80 h-80 bg-orange-300 rounded-full blur-3xl opacity-20"></div>
+
+  <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-blue-300 rounded-full blur-3xl opacity-20"></div>
+
+  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+
+    <Sparkles className="w-24 h-24 text-orange-200 opacity-30"/>
+
+  </div>
 
     </section>
   );
@@ -172,11 +183,11 @@ export default function HeroSection() {
     <img
       src="/hero-logo.png"
       alt="KaamHub"
-      className="w-[420px] max-w-full mx-auto"
+      className="w-[420px] max-w-full mx-auto hover:scale-105 transition duration-500"
     />
 
     {/* Verified */}
-    <div className="absolute top-8 -left-8 bg-white rounded-2xl shadow-xl px-5 py-4 flex items-center gap-3">
+    <div className="absolute top-8 -left-8 bg-white rounded-2xl shadow-xl px-5 py-4 flex items-center gap-3 hover:-translate-y-2 hover:shadow-2xl transition-all duration-300"
 
       <ShieldCheck className="text-green-600 w-8 h-8"/>
 
@@ -192,7 +203,7 @@ export default function HeroSection() {
     </div>
 
     {/* Rating */}
-    <div className="absolute bottom-8 -right-8 bg-white rounded-2xl shadow-xl px-5 py-4 flex items-center gap-3">
+    <div className="absolute bottom-8 -right-8 bg-white rounded-2xl shadow-xl px-5 py-4 flex items-center gap-3 hover:-translate-y-2 hover:shadow-2xl transition-all duration-300"
 
       <Star className="text-[#FF8A00] fill-[#FF8A00] w-8 h-8"/>
 
@@ -208,7 +219,7 @@ export default function HeroSection() {
     </div>
 
     {/* Support */}
-    <div className="absolute left-16 bottom-0 translate-y-1/2 bg-[#0F2D5C] text-white rounded-2xl px-6 py-4 shadow-xl">
+    <div className="absolute left-16 bottom-0 translate-y-1/2 bg-[#0F2D5C] text-white rounded-2xl px-6 py-4 shadow-xl hover:-translate-y-2 hover:shadow-2xl transition-all duration-300"
 
       <div className="flex items-center gap-3">
 
