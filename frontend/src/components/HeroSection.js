@@ -165,9 +165,10 @@ export default function HeroSection() {
             <div className="relative bg-white rounded-[40px] shadow-2xl p-8 border border-gray-100">
 
               <img
-                src="/hero-logo.png"
-                alt="KaamHub"
-              />
+  src="/hero-team.png"
+  alt="KaamHub Professionals"
+  className="w-[500px] max-w-full mx-auto hover:scale-105 transition duration-500"
+/>
 
               {/* Verified Card */}
 
