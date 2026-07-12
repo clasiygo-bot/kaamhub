@@ -116,44 +116,9 @@ export default function Landing() {
           <Link data-testid="landing-bottom-cta" to="/user/register" className="kh-cta px-7 py-3.5 text-base whitespace-nowrap">Get the App</Link>
         </div>
       </section>
-
-     <footer className="border-t border-slate-200">
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between">
-
-    <Logo />
-
-    <div className="flex flex-col sm:flex-row items-center gap-4">
-      <div>
-        {new Date().getFullYear()} KaamHub. All Rights Reserved.
-      </div>
-
-      <Link to="/about-us" className="text-sm hover:text-orange-500">
-        About Us
-      </Link>
-
-      <Link to="/privacy-policy" className="text-sm hover:text-orange-500">
-        Privacy Policy
-      </Link>
-
-      <Link to="/terms-and-conditions" className="text-sm hover:text-orange-500">
-        Terms & Conditions
-      </Link>
-
-      <Link to="/contact-us" className="text-sm hover:text-orange-500">
-        Contact Us
-      </Link>
         
-      <Link to="/refund-policy" className="text-sm hover:text-orange-500">
-        Refund Policy
-      </Link>
-
-        <Link to="/cancellation-policy" className="text-sm hover:text-orange-500">
-          Cancellation Policy
-        </Link>
-    </div>
-
-  </div>
-</footer>
+    <Footer/>
+        
     </div>
   );
 }
