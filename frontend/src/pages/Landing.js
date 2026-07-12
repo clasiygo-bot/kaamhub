@@ -116,12 +116,35 @@ export default function Landing() {
         </div>
       </section>
 
-      <footer className="border-t border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-500">
-          <Logo />
-          <div>© {new Date().getFullYear()} KaamHub. All rights reserved.</div>
-        </div>
-      </footer>
+     <footer className="border-t border-slate-200">
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between">
+
+    <Logo />
+
+    <div className="flex flex-col sm:flex-row items-center gap-4">
+      <div>
+        {new Date().getFullYear()} KaamHub. All Rights Reserved.
+      </div>
+
+      <Link to="/about-us" className="text-sm hover:text-orange-500">
+        About Us
+      </Link>
+
+      <Link to="/privacy-policy" className="text-sm hover:text-orange-500">
+        Privacy Policy
+      </Link>
+
+      <Link to="/terms-and-conditions" className="text-sm hover:text-orange-500">
+        Terms & Conditions
+      </Link>
+
+      <Link to="/contact-us" className="text-sm hover:text-orange-500">
+        Contact Us
+      </Link>
+    </div>
+
+  </div>
+</footer>
     </div>
   );
 }
