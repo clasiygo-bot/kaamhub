@@ -65,7 +65,8 @@ function AppRoutes() {
       <Route path="/partner/login" element={<LoginScoped role="partner" heroTitle={<>Welcome back <br/><span className="text-[#FF8A00]">Partner</span></>} heroSubtitle="Earn on your own schedule. Get instant job alerts." features={["Instant booking alerts","Weekly payouts","Rating-based bonuses"]}/>} />
       <Route path="/partner/register" element={<RegisterScoped role="partner" heroTitle={<>Earn with <span className="text-[#FF8A00]">KaamHub</span></>} heroSubtitle="Sign up. Verify. Start earning within 24 hrs." ctaLabel="Become a partner"/>} />
       <Route path="/payment/:result" element={<PaymentResult />} />
-
+      <Route path="/about-us" element={<AboutUs />} />
+  
       {/* Customer */}
       <Route
         path="/customer"
