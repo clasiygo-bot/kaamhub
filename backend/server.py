@@ -458,29 +458,33 @@ async def my_bookings(user: Dict = Depends(get_current_user)):
 
 @api.get("/bookings/available")
 async def available_bookings(user: Dict = Depends(require_role("partner"))):
-    partner = await db.partners.find_one({
-        "user_id": user["id"],
-        "status": "approved",
-        "online": True
-    })
+
+    partner = await db.partners.find_one(
+        {"user_id": user["id"]},
+        {"_id": 0}
+    )
 
     if not partner:
         return []
 
-    cat = partner.get("service_category", "")
+    if partner.get("status") != "approved":
+        return []
 
-    q = {
+    if partner.get("online") != True:
+        return []
+
+    query = {
         "status": "pending",
         "partner_id": None
     }
 
-    if cat:
-        q["category"] = cat
+    category = partner.get("service_category")
+    if category:
+        query["category"] = category
 
-    items = await db.bookings.find(q).sort("created_at", -1).to_list(200)
-    
-    return [await _booking_to_view(b) for b in items]
+    items = await db.bookings.find(query).sort("created_at", -1).to_list(200)
 
+    return [await _booking_to_view(item) for item in items]
 
 @api.get("/bookings/{booking_id}")
 async def get_booking(booking_id: str, user: Dict = Depends(get_current_user)):
