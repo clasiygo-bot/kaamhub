@@ -458,19 +458,27 @@ async def my_bookings(user: Dict = Depends(get_current_user)):
 
 @api.get("/bookings/available")
 async def available_bookings(user: Dict = Depends(require_role("partner"))):
-    # Show pending bookings matching partner's category if approved
     partner = await db.partners.find_one({
-    "user_id": user["id"],
-    "status": "approved",
-    "online": True
-})
-if not partner:
-    return[]
+        "user_id": user["id"],
+        "status": "approved",
+        "online": True
+    })
+
+    if not partner:
+        return []
+
     cat = partner.get("service_category", "")
-    q = {"status": "pending", "partner_id": None}
+
+    q = {
+        "status": "pending",
+        "partner_id": None
+    }
+
     if cat:
         q["category"] = cat
+
     items = await db.bookings.find(q).sort("created_at", -1).to_list(200)
+    
     return [await _booking_to_view(b) for b in items]
 
 
@@ -488,9 +496,14 @@ async def get_booking(booking_id: str, user: Dict = Depends(get_current_user)):
 
 @api.post("/bookings/{booking_id}/accept")
 async def accept_booking(booking_id: str, user: Dict = Depends(require_role("partner"))):
-    partner = await db.partners.find_one({"user_id": user["id"]})
-    if not partner or partner.get("status") != "approved":
-        raise HTTPException(403, "Partner not approved")
+    partner = await db.partners.find_one({
+    "user_id": user["id"],
+    "status": "approved",
+    "online": True
+})
+
+if not partner:
+    raise HTTPException(403, "Partner is offline or not approved")
     b = await db.bookings.find_one({"id": booking_id})
     if not b:
         raise HTTPException(404, "Booking not found")
@@ -503,14 +516,22 @@ async def accept_booking(booking_id: str, user: Dict = Depends(require_role("par
     })
     b = await db.bookings.find_one({"id": booking_id})
     # notify customer
+    partners = await db.partners.find({
+    "status": "approved",
+    "online": True,
+    "service_category": service.get("category")
+}).to_list(500)
+
+for partner in partners:
     await db.notifications.insert_one({
         "id": str(uuid.uuid4()),
-        "user_id": b["customer_id"],
-        "title": "Booking accepted",
-        "body": "A partner accepted your booking",
-        "booking_id": booking_id,
+        "user_id": partner["user_id"],
+        "title": "New booking request",
+        "body": f'{service.get("name")} • {payload.address}',
+        "booking_id": booking["id"],
+        "wa_message": wa_text,
         "read": False,
-        "created_at": now,
+        "created_at": iso(now_utc()),
     })
     return await _booking_to_view(b)
 
