@@ -210,7 +210,7 @@ export default function HeroSection() {
 
                   <p className="text-sm text-gray-500">
 
-                    50K+ Reviews
+                    50+ Reviews
 
                   </p>
 
