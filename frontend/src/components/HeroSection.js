@@ -87,7 +87,7 @@ export default function HeroSection() {
 
                 <h3 className="text-2xl font-bold mt-3">
 
-                  10K+
+                  50+
 
                 </h3>
 
@@ -105,7 +105,7 @@ export default function HeroSection() {
 
                 <h3 className="text-2xl font-bold mt-3">
 
-                  50K+
+                  200+
 
                 </h3>
 
