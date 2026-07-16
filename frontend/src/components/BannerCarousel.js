@@ -10,14 +10,39 @@ export default function BannerCarousel({ banners = [], testid = "banner-carousel
   }, [active.length]);
   if (active.length === 0) return null;
   const b = active[i];
-  const inner = (
-    <div className="relative rounded-3xl overflow-hidden aspect-[16/6] sm:aspect-[16/5] bg-slate-100">
-      <img src={b.image} alt={b.title} className="w-full h-full object-contain bg-white"
-      <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent" />
-      <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10 text-white">
-        <div className="text-lg sm:text-2xl font-bold" style={{fontFamily:"Outfit"}}>{b.title}</div>
-        {b.subtitle && <div className="mt-1 text-white/85 text-sm sm:text-base max-w-md line-clamp-2">{b.subtitle}</div>}
-      </div>
+
+const inner = (
+  <div className="relative rounded-3xl overflow-hidden aspect-[16/6] sm:aspect-[16/5] bg-slate-100">
+    <img
+      src={b.image}
+      alt={b.title || "Banner"}
+      className="w-full h-full object-contain bg-white"
+    />
+
+    {(b.title || b.subtitle) && (
+      <>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent" />
+
+        <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10 text-white">
+          {b.title && (
+            <div
+              className="text-lg sm:text-2xl font-bold"
+              style={{ fontFamily: "Outfit" }}
+            >
+              {b.title}
+            </div>
+          )}
+
+          {b.subtitle && (
+            <div className="mt-1 text-white/85 text-sm sm:text-base max-w-md line-clamp-2">
+              {b.subtitle}
+            </div>
+          )}
+        </div>
+      </>
+    )}
+  </div>
+);
       {active.length > 1 && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
           {active.map((_, idx) => (
