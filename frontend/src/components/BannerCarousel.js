@@ -27,7 +27,7 @@ export default function BannerCarousel({
       <img
         src={b.image}
         alt={b.title || "Banner"}
-        className="w-full h-full object-contain bg-white"
+        className="absolute inset-0 w-full h-full object-cover"
       />
 
       {(b.title || b.subtitle) && (
