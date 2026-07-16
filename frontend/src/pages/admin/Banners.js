@@ -46,7 +46,12 @@ export default function Banners() {
           <button type="button" onClick={close} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"><X className="w-4 h-4"/></button>
           <h2 className="text-lg font-bold text-[#0F2D5C]">{editing === "new" ? "Create banner" : "Edit banner"}</h2>
           <div className="grid sm:grid-cols-2 gap-3">
-            <TF label="Title" testid="banner-title" value={form.title} onChange={(v)=>setForm({...form,title:v})} required/>
+            <TF
+  label="Title"
+  testid="banner-title"
+  value={form.title}
+  onChange={(v)=>setForm({...form,title:v})}
+/>
             <TF label="Subtitle" testid="banner-subtitle" value={form.subtitle} onChange={(v)=>setForm({...form,subtitle:v})}/>
             <TF label="Image URL (or upload below)" testid="banner-image" value={form.image} onChange={(v)=>setForm({...form,image:v})} placeholder="https://…  or leave empty and upload"/>
             <div>
