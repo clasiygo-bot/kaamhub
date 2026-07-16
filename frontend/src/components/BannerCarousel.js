@@ -12,7 +12,7 @@ export default function BannerCarousel({ banners = [], testid = "banner-carousel
   const b = active[i];
   const inner = (
     <div className="relative rounded-3xl overflow-hidden aspect-[16/6] sm:aspect-[16/5] bg-slate-100">
-      <img src={b.image} alt={b.title} className="w-full h-full object-cover"/>
+      <img src={b.image} alt={b.title} className="w-full h-full object-contain bg-white"
       <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent" />
       <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10 text-white">
         <div className="text-lg sm:text-2xl font-bold" style={{fontFamily:"Outfit"}}>{b.title}</div>
